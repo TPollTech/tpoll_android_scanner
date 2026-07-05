@@ -1,6 +1,7 @@
 # Add project specific ProGuard rules here.
 -keep class com.tpoll.scanner.model.** { *; }
 -keep class com.tpoll.scanner.scanner.** { *; }
+-keep class com.tpoll.scanner.updater.** { *; }
 -keepattributes Signature
 -keepattributes *Annotation*
 
