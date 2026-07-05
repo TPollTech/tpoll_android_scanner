@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import com.tpoll.scanner.ui.screens.DashboardScreen
 import com.tpoll.scanner.ui.screens.HealthScreen
 import com.tpoll.scanner.ui.screens.HistoryScreen
+import com.tpoll.scanner.ui.screens.QuarantineScreen
 import com.tpoll.scanner.ui.screens.SettingsScreen
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
 
@@ -90,8 +91,14 @@ enum class Screen(val route: String, val label: String, val icon: ImageVector) {
 @Composable
 fun MainScreen() {
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
+    var showQuarantine by remember { mutableStateOf(false) }
 
     val screens = Screen.entries
+
+    if (showQuarantine) {
+        QuarantineScreen(onBack = { showQuarantine = false })
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -127,7 +134,8 @@ fun MainScreen() {
             when (currentScreen) {
                 Screen.Dashboard -> DashboardScreen(
                     onNavigateToHistory = { currentScreen = Screen.History },
-                    onNavigateToHealth = { currentScreen = Screen.Health }
+                    onNavigateToHealth = { currentScreen = Screen.Health },
+                    onNavigateToQuarantine = { showQuarantine = true }
                 )
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()

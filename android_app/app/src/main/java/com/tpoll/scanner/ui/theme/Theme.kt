@@ -1,11 +1,32 @@
 package com.tpoll.scanner.ui.theme
 
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
+
+object ThemeManager {
+    private const val PREFS_NAME = "theme_prefs"
+    private const val KEY_THEME_MODE = "theme_mode"
+
+    fun getMode(context: Context): ThemeMode {
+        val ordinal = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_THEME_MODE, ThemeMode.SYSTEM.ordinal)
+        return ThemeMode.entries.getOrElse(ordinal) { ThemeMode.SYSTEM }
+    }
+
+    fun setMode(context: Context, mode: ThemeMode) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_THEME_MODE, mode.ordinal)
+            .apply()
+    }
+}
 
 private val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF90CAF9),
@@ -60,13 +81,19 @@ val GreenColor = Color(0xFF4CAF50)
 
 @Composable
 fun TPollScannerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    val mode = ThemeManager.getMode(context)
+
+    val darkTheme = when (mode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme

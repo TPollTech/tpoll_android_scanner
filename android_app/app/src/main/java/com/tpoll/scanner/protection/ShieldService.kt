@@ -13,6 +13,7 @@ import com.tpoll.scanner.MainActivity
 import com.tpoll.scanner.R
 import com.tpoll.scanner.data.AppDatabase
 import com.tpoll.scanner.model.AppFinding
+import com.tpoll.scanner.model.QuarantinedApp
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.notifications.NotificationHelper
 import kotlinx.coroutines.*
@@ -116,6 +117,7 @@ class ShieldService : Service() {
                     val app = application as com.tpoll.scanner.TPollApp
                     for (threat in status.threats.filter { it.severity >= 70 }) {
                         app.notificationHelper.showShieldAlert(threat)
+                        autoRemoveThreat(threat)
                     }
                 }
 
@@ -151,6 +153,37 @@ class ShieldService : Service() {
                 )
             }
             db.appDao().insertAll(findings)
+        } catch (_: Exception) { }
+    }
+
+    private suspend fun autoRemoveThreat(threat: com.tpoll.scanner.protection.ShieldThreat) {
+        try {
+            val settings = getSharedPreferences("scan_settings", Context.MODE_PRIVATE)
+            val autoHigh = settings.getBoolean("auto_remove_high", true)
+            val autoMedium = settings.getBoolean("auto_remove_medium", false)
+            val shouldRemove = (threat.severity >= 80 && autoHigh) || (threat.severity in 50..79 && autoMedium)
+            if (!shouldRemove) return
+
+            val db = AppDatabase.getInstance(this)
+            val appName = try {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(threat.packageName, 0)).toString()
+            } catch (_: Exception) { threat.appName }
+
+            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.parse("package:${threat.packageName}")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            try { startActivity(intent) } catch (_: Exception) { }
+
+            val quarantined = QuarantinedApp(
+                packageName = threat.packageName,
+                appName = appName,
+                reason = threat.details,
+                riskLevel = if (threat.severity >= 80) "HIGH" else "MEDIUM",
+                score = threat.severity,
+                removedBy = "auto"
+            )
+            db.quarantineDao().insert(quarantined)
         } catch (_: Exception) { }
     }
 

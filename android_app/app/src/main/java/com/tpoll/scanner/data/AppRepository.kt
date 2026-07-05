@@ -1,9 +1,12 @@
 package com.tpoll.scanner.data
 
 import com.tpoll.scanner.model.AppFinding
+import com.tpoll.scanner.model.QuarantinedApp
 
-class AppRepository(private val dao: AppDao) {
-
+class AppRepository(
+    private val dao: AppDao,
+    private val quarantineDao: QuarantineDao
+) {
     suspend fun saveFindings(findings: List<AppFinding>) {
         dao.deleteAll()
         dao.insertAll(findings)
@@ -21,4 +24,14 @@ class AppRepository(private val dao: AppDao) {
         val cutoff = System.currentTimeMillis() - keepDays * 24 * 60 * 60 * 1000L
         dao.deleteOlderThan(cutoff)
     }
+
+    suspend fun quarantineApp(app: QuarantinedApp) = quarantineDao.insert(app)
+
+    suspend fun getAllQuarantined(): List<QuarantinedApp> = quarantineDao.getAll()
+
+    suspend fun getQuarantineCount(): Int = quarantineDao.count()
+
+    suspend fun removeFromQuarantine(pkg: String) = quarantineDao.deleteByPackage(pkg)
+
+    suspend fun clearQuarantine() = quarantineDao.deleteAll()
 }

@@ -18,8 +18,11 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import android.content.Intent
 import com.tpoll.scanner.BootReceiver
 import com.tpoll.scanner.protection.ShieldService
+import com.tpoll.scanner.ui.theme.ThemeManager
+import com.tpoll.scanner.ui.theme.ThemeMode
 import com.tpoll.scanner.updater.UpdateChecker
 import com.tpoll.scanner.updater.UpdateDialog
 import java.security.MessageDigest
@@ -204,6 +207,44 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
+                    text = "Aparência",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                var currentMode by remember { mutableStateOf(ThemeManager.getMode(context)) }
+                val modes = listOf(
+                    ThemeMode.SYSTEM to "Sistema",
+                    ThemeMode.LIGHT to "Claro",
+                    ThemeMode.DARK to "Escuro"
+                )
+
+                modes.forEach { (mode, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = currentMode == mode,
+                            onClick = {
+                                currentMode = mode
+                                ThemeManager.setMode(context, mode)
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(label)
+                    }
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
                     text = "Atualizações",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -258,6 +299,39 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "TPoll Scanner - Proteção automática contra apps maliciosos no Android\nhttps://github.com/TPollTech/tpoll_android_scanner")
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Compartilhar"))
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Compartilhar")
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://github.com/TPollTech/tpoll_android_scanner"))
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Código")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 

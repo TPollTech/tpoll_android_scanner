@@ -1,7 +1,7 @@
 {
-  "version_code": 5,
-  "version_name": "1.3.0",
-  "changelog": "Novidades da v1.3.0:\n\n- Diagnóstico de saúde do dispositivo: bateria, armazenamento, RAM, CPU, sensores, rede, Bluetooth e mais\n- Aba 'Saúde' na navegação com análise completa do hardware\n- Card de saúde no Painel principal\n- Verificação de assinatura do APK (SHA-256) nas Configurações para confirmar autenticidade\n- Correções de estabilidade e melhorias gerais",
+  "version_code": 6,
+  "version_name": "1.3.2",
+  "changelog": "Novidades da v1.3.2:\n\n- Modo escuro manual (Sistema/Claro/Escuro) nas Configurações\n- Quarentena de apps removidos automaticamente pelo Shield\n- Tela de quarentena com lista de apps removidos e opção de restaurar\n- Card de quarentena no Painel principal\n- Swipe para remover ameaças no Histórico\n- Botão Compartilhar app nas Configurações\n- Vibração tátil ao escanear e limpar ameaças\n- Correções de estabilidade e melhorias gerais",
   "download_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "apk_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "min_version_code": 1

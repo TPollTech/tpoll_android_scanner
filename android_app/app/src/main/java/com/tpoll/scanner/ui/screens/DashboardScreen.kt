@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tpoll.scanner.ScanService
+import com.tpoll.scanner.TPollApp
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.ui.theme.*
 
@@ -27,7 +28,8 @@ import com.tpoll.scanner.ui.theme.*
 fun DashboardScreen(
     modifier: Modifier = Modifier,
     onNavigateToHistory: () -> Unit = {},
-    onNavigateToHealth: () -> Unit = {}
+    onNavigateToHealth: () -> Unit = {},
+    onNavigateToQuarantine: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("scan_results", Context.MODE_PRIVATE)
@@ -187,6 +189,54 @@ fun DashboardScreen(
                     )
                 }
                 if (shieldThreats > 0) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                }
+            }
+        }
+
+        var quarantineCount by remember { mutableIntStateOf(0) }
+        LaunchedEffect(Unit) {
+            try { quarantineCount = TPollApp.instance.database.quarantineDao().count() } catch (_: Exception) { }
+        }
+
+        if (quarantineCount > 0) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onNavigateToQuarantine() },
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Block,
+                        contentDescription = null,
+                        tint = HighRiskColor,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Quarentena",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$quarantineCount app(s) removido(s) - Toque para gerenciar",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = null,
