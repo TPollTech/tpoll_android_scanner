@@ -70,9 +70,14 @@ class UpdateChecker {
         try {
             val url = URL(UPDATE_URL)
             val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
+            connection.connectTimeout = 8000
+            connection.readTimeout = 8000
             connection.instanceFollowRedirects = true
+
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                return@withContext UpdateResult.Error("Servidor retornou código $responseCode")
+            }
 
             val reader = BufferedReader(InputStreamReader(connection.inputStream))
             val response = reader.readText()
@@ -80,15 +85,23 @@ class UpdateChecker {
             connection.disconnect()
 
             val gson = Gson()
-            val updateInfo = gson.fromJson(response, UpdateInfo::class.java)
+            val updateInfo = try {
+                gson.fromJson(response, UpdateInfo::class.java)
+            } catch (e: Exception) {
+                return@withContext UpdateResult.Error("Erro ao ler dados de versão")
+            }
 
             if (updateInfo.version_code > UpdateInfo.currentVersionCode) {
                 UpdateResult.Available(updateInfo)
             } else {
                 UpdateResult.UpToDate
             }
+        } catch (e: java.net.UnknownHostException) {
+            UpdateResult.Error("Sem conexão com a internet")
+        } catch (e: java.net.SocketTimeoutException) {
+            UpdateResult.Error("Tempo limite excedido. Verifique sua internet")
         } catch (e: Exception) {
-            UpdateResult.Error(e.message ?: "Erro ao verificar atualização")
+            UpdateResult.Error("Erro de conexão")
         }
     }
 

@@ -1,6 +1,5 @@
 package com.tpoll.scanner.updater
 
-import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -100,40 +99,25 @@ fun UpdateDialog(
                 result is UpdateResult.Error -> {
                     Column {
                         Text("Não foi possível verificar atualizações.")
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = (result as UpdateResult.Error).message,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Verifique sua conexão com a internet.",
-                            style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            when (result) {
-                is UpdateResult.Available -> {
-                    Button(onClick = {
-                        val info = (result as UpdateResult.Available).info
-                        val url = info.apk_url.ifEmpty { info.download_url }
-                        checker.openDownloadUrl(context, url)
-                    }) {
-                        Text("Baixar APK")
-                    }
+            if (result is UpdateResult.Available) {
+                val info = (result as UpdateResult.Available).info
+                Button(onClick = {
+                    val url = info.apk_url.ifEmpty { info.download_url }
+                    checker.openDownloadUrl(context, url)
+                }) {
+                    Text("Baixar APK")
                 }
-                is UpdateResult.Error -> {
-                    Button(onClick = {
-                        checker.openReleasesPage(context)
-                    }) {
-                        Text("Ver no GitHub")
-                    }
-                }
-                else -> {}
             }
         },
         dismissButton = {
