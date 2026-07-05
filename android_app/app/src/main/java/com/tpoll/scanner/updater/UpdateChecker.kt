@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -39,6 +40,8 @@ class UpdateChecker {
         private const val UPDATE_URL = "https://raw.githubusercontent.com/TPollTech/tpoll_android_scanner/main/update.json"
         private const val PREF_NAME = "update_prefs"
         private const val KEY_LAST_CHECK = "last_update_check"
+        private const val KEY_RETRY_COUNT = "retry_count"
+        private const val MAX_RETRIES = 3
 
         fun init(context: Context) {
             val pkgInfo = context.packageManager.getPackageInfo(context.packageName, 0)
@@ -54,6 +57,10 @@ class UpdateChecker {
         fun shouldCheck(context: Context): Boolean {
             val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             val lastCheck = prefs.getLong(KEY_LAST_CHECK, 0L)
+            val retries = prefs.getInt(KEY_RETRY_COUNT, 0)
+            if (retries > 0) {
+                return System.currentTimeMillis() - lastCheck > 5 * 60 * 1000L
+            }
             return System.currentTimeMillis() - lastCheck > 24 * 60 * 60 * 1000L
         }
 
@@ -61,7 +68,22 @@ class UpdateChecker {
             context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .edit()
                 .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
+                .putInt(KEY_RETRY_COUNT, 0)
                 .apply()
+        }
+
+        private fun markRetry(context: Context) {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            val retries = prefs.getInt(KEY_RETRY_COUNT, 0) + 1
+            prefs.edit()
+                .putLong(KEY_LAST_CHECK, System.currentTimeMillis())
+                .putInt(KEY_RETRY_COUNT, retries)
+                .apply()
+        }
+
+        fun canRetry(context: Context): Boolean {
+            val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            return prefs.getInt(KEY_RETRY_COUNT, 0) < MAX_RETRIES
         }
     }
 
@@ -104,12 +126,31 @@ class UpdateChecker {
         }
     }
 
+    suspend fun checkForUpdatesWithRetry(context: Context): UpdateResult {
+        var result: UpdateResult
+        var attempt = 0
+        do {
+            result = checkForUpdates()
+            if (result is UpdateResult.Error && attempt < MAX_RETRIES) {
+                attempt++
+                markRetry(context)
+                delay(2000L * attempt)
+            } else {
+                break
+            }
+        } while (true)
+
+        if (result is UpdateResult.Available || result is UpdateResult.UpToDate) {
+            markChecked(context)
+        }
+        return result
+    }
+
     fun openDownloadUrl(context: Context, url: String) {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(intent)
-        } catch (e: Exception) { }
+        } catch (_: Exception) { }
     }
-
 }

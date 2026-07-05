@@ -9,7 +9,8 @@ enum class RiskLevel {
 
 @Entity(tableName = "scan_results")
 data class AppFinding(
-    @PrimaryKey
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
     val packageName: String,
     val appName: String = "",
     val apkPath: String = "",

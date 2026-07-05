@@ -96,12 +96,10 @@ fun MainScreen() {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = currentScreen.label.let { name ->
-                            when (currentScreen) {
-                                Screen.Dashboard -> "TPoll Scanner"
-                                Screen.History -> "Histórico"
-                                Screen.Settings -> "Configurações"
-                            }
+                        text = when (currentScreen) {
+                            Screen.Dashboard -> "TPoll Scanner"
+                            Screen.History -> "Histórico"
+                            Screen.Settings -> "Configurações"
                         }
                     )
                 }
@@ -124,7 +122,9 @@ fun MainScreen() {
             modifier = Modifier.padding(paddingValues)
         ) {
             when (currentScreen) {
-                Screen.Dashboard -> DashboardScreen()
+                Screen.Dashboard -> DashboardScreen(
+                    onNavigateToHistory = { currentScreen = Screen.History }
+                )
                 Screen.History -> HistoryScreen()
                 Screen.Settings -> SettingsScreen()
             }

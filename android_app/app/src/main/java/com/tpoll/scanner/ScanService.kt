@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import com.tpoll.scanner.data.AppDatabase
 import com.tpoll.scanner.model.AppFinding
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.model.ScanResult
@@ -186,6 +187,13 @@ class ScanService : Service() {
         }
 
         editor.apply()
+
+        try {
+            val db = AppDatabase.getInstance(this)
+            scope.launch {
+                db.appDao().insertAll(findings)
+            }
+        } catch (_: Exception) { }
     }
 
     private fun acquireWakeLock() {

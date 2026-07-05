@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.tpoll.scanner.MainActivity
@@ -64,14 +65,29 @@ class NotificationHelper(private val context: Context) {
         manager.createNotificationChannel(protectionChannel)
     }
 
-    fun showScanProgress(current: Int, total: Int, packageName: String) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
+    private fun openAppIntent(): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        return PendingIntent.getActivity(
             context, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    private fun uninstallIntent(packageName: String): PendingIntent {
+        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:$packageName")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        return PendingIntent.getActivity(
+            context, packageName.hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    fun showScanProgress(current: Int, total: Int, packageName: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val notification = NotificationCompat.Builder(context, CHANNEL_SCAN)
             .setSmallIcon(R.drawable.ic_shield)
@@ -79,7 +95,7 @@ class NotificationHelper(private val context: Context) {
             .setContentText("$current/$total: $packageName")
             .setProgress(total, current, false)
             .setOngoing(true)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openAppIntent())
             .setSilent(true)
             .build()
 
@@ -95,15 +111,7 @@ class NotificationHelper(private val context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancel(NOTIFICATION_SCAN_ID)
 
-        if (highRisk == 0 && mediumRisk == 0) {
-            return
-        }
-
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        if (highRisk == 0 && mediumRisk == 0) return
 
         val title = if (removedCount > 0) {
             "Ameaças removidas: $removedCount"
@@ -124,7 +132,7 @@ class NotificationHelper(private val context: Context) {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openAppIntent())
             .setAutoCancel(true)
             .build()
 
@@ -133,12 +141,6 @@ class NotificationHelper(private val context: Context) {
 
     fun showThreatRemoved(finding: AppFinding) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 
         val riskLabel = when (finding.level) {
             RiskLevel.HIGH -> "ALTO"
@@ -151,7 +153,11 @@ class NotificationHelper(private val context: Context) {
             .setContentTitle("Ameaça removida: ${finding.appName}")
             .setContentText("Risco $riskLabel (${finding.score}/100) - ${finding.reasons.firstOrNull() ?: ""}")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openAppIntent())
+            .addAction(
+                0, "Desinstalar",
+                uninstallIntent(finding.packageName)
+            )
             .setAutoCancel(true)
             .build()
 
@@ -161,31 +167,31 @@ class NotificationHelper(private val context: Context) {
     fun showShieldAlert(threat: ShieldThreat) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val notification = NotificationCompat.Builder(context, CHANNEL_THREATS)
             .setSmallIcon(R.drawable.ic_shield)
             .setContentTitle("ALERTA: ${threat.appName}")
             .setContentText(threat.details)
             .setStyle(NotificationCompat.BigTextStyle().bigText(threat.details))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openAppIntent())
+            .addAction(
+                0, "Desinstalar",
+                uninstallIntent(threat.packageName)
+            )
             .setAutoCancel(true)
             .build()
 
         manager.notify(NOTIFICATION_SHIELD_ALERT_BASE + threat.packageName.hashCode(), notification)
     }
 
-    fun showUpdateAvailable(versionName: String, changelog: String) {
+    fun showUpdateAvailable(versionName: String, changelog: String, downloadUrl: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        val intent = Intent(context, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
+        val downloadIntent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        val downloadPending = PendingIntent.getActivity(
+            context, 4002, downloadIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -195,7 +201,8 @@ class NotificationHelper(private val context: Context) {
             .setContentText("Toque para ver as novidades")
             .setStyle(NotificationCompat.BigTextStyle().bigText(changelog.take(500)))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
+            .setContentIntent(openAppIntent())
+            .addAction(0, "Baixar", downloadPending)
             .setAutoCancel(true)
             .build()
 

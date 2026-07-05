@@ -11,6 +11,9 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.tpoll.scanner.MainActivity
 import com.tpoll.scanner.R
+import com.tpoll.scanner.data.AppDatabase
+import com.tpoll.scanner.model.AppFinding
+import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.notifications.NotificationHelper
 import kotlinx.coroutines.*
 
@@ -28,9 +31,7 @@ class ShieldService : Service() {
         fun isRunning(): Boolean = isRunning
 
         fun start(context: Context) {
-            val intent = Intent(context, ShieldService::class.java).apply {
-                action = ACTION_START
-            }
+            val intent = Intent(context, ShieldService::class.java).apply { action = ACTION_START }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
@@ -39,9 +40,7 @@ class ShieldService : Service() {
         }
 
         fun stop(context: Context) {
-            val intent = Intent(context, ShieldService::class.java).apply {
-                action = ACTION_STOP
-            }
+            val intent = Intent(context, ShieldService::class.java).apply { action = ACTION_STOP }
             context.startService(intent)
         }
 
@@ -102,6 +101,8 @@ class ShieldService : Service() {
                 val status = detector.detectAllThreats()
                 currentThreatCount = status.totalThreats
 
+                saveThreatsToDatabase(status)
+
                 val title = if (currentThreatCount > 0) {
                     "$currentThreatCount ameaça(s) detectada(s) - Toque para ver"
                 } else {
@@ -113,8 +114,7 @@ class ShieldService : Service() {
 
                 if (status.hasCriticalThreats) {
                     val app = application as com.tpoll.scanner.TPollApp
-                    val criticalThreats = status.threats.filter { it.severity >= 70 }
-                    for (threat in criticalThreats) {
+                    for (threat in status.threats.filter { it.severity >= 70 }) {
                         app.notificationHelper.showShieldAlert(threat)
                     }
                 }
@@ -127,8 +127,31 @@ class ShieldService : Service() {
                     .putLong("last_check", status.lastChecked)
                     .putBoolean("real_time_active", true)
                     .apply()
-            } catch (e: Exception) { }
+            } catch (_: Exception) { }
         }
+    }
+
+    private suspend fun saveThreatsToDatabase(status: ProtectionStatus) {
+        try {
+            val db = AppDatabase.getInstance(this)
+            val findings = status.threats.map { threat ->
+                AppFinding(
+                    packageName = threat.packageName,
+                    appName = threat.appName,
+                    score = threat.severity,
+                    level = when {
+                        threat.severity >= 80 -> RiskLevel.HIGH
+                        threat.severity >= 50 -> RiskLevel.MEDIUM
+                        else -> RiskLevel.LOW
+                    },
+                    reasons = listOf(threat.details),
+                    isKnownThreat = threat.isMalware,
+                    threatType = threat.type.name,
+                    timestamp = System.currentTimeMillis()
+                )
+            }
+            db.appDao().insertAll(findings)
+        } catch (_: Exception) { }
     }
 
     override fun onDestroy() {
@@ -166,6 +189,6 @@ class ShieldService : Service() {
             ).apply {
                 acquire(10 * 60 * 1000L)
             }
-        } catch (e: Exception) { }
+        } catch (_: Exception) { }
     }
 }
