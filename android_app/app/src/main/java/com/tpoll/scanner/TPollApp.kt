@@ -6,6 +6,7 @@ import android.content.IntentFilter
 import android.os.Build
 import com.tpoll.scanner.data.AppDatabase
 import com.tpoll.scanner.notifications.NotificationHelper
+import com.tpoll.scanner.protection.LicenseValidator
 import com.tpoll.scanner.protection.PackageReceiver
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.updater.RemoteConfig
@@ -23,6 +24,8 @@ class TPollApp : Application() {
         private set
     lateinit var remoteConfig: RemoteConfig
         private set
+    lateinit var ttsHelper: TtsHelper
+        private set
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -32,6 +35,8 @@ class TPollApp : Application() {
         database = AppDatabase.getInstance(this)
         notificationHelper = NotificationHelper(this)
         remoteConfig = RemoteConfig(this)
+        ttsHelper = TtsHelper(this)
+        LicenseValidator.checkAndStoreSignature(this)
         ShieldService.start(this)
         UpdateChecker.init(this)
         registerPackageReceiver()

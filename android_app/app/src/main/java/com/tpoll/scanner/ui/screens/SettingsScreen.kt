@@ -245,6 +245,42 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
+                    text = "Acessibilidade",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val ttsHelper = com.tpoll.scanner.TPollApp.instance.ttsHelper
+                var ttsEnabled by remember { mutableStateOf(ttsHelper.isEnabled()) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Assistente de voz", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Anuncia alertas de segurança em voz alta",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = ttsEnabled,
+                        onCheckedChange = { enabled ->
+                            ttsEnabled = enabled
+                            ttsHelper.setEnabled(enabled)
+                        }
+                    )
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
                     text = "Atualizações",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -298,6 +334,16 @@ fun SettingsScreen(
                     text = "App open-source de segurança para Android.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = "© 2026 TPollTech. Licença MIT.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
+                Text(
+                    text = "Proibida a redistribuição sem autorização.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
