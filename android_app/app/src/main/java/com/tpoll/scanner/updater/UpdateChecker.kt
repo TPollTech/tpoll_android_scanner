@@ -37,7 +37,6 @@ class UpdateChecker {
 
     companion object {
         private const val UPDATE_URL = "https://raw.githubusercontent.com/TPollTech/tpoll_android_scanner/main/update.json"
-        private const val GITHUB_RELEASES_URL = "https://github.com/TPollTech/tpoll_android_scanner/releases"
         private const val PREF_NAME = "update_prefs"
         private const val KEY_LAST_CHECK = "last_update_check"
 
@@ -113,11 +112,4 @@ class UpdateChecker {
         } catch (e: Exception) { }
     }
 
-    fun openReleasesPage(context: Context) {
-        try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_RELEASES_URL))
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            context.startActivity(intent)
-        } catch (e: Exception) { }
-    }
 }
