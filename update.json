@@ -1,7 +1,7 @@
 {
-  "version_code": 8,
-  "version_name": "1.4.1",
-  "changelog": "Novidades da v1.4.1:\n\n- WebGuard: monitoramento de downloads maliciosos em tempo real\n- Escaneia APKs baixados automaticamente antes de você abri-los\n- Alerta imediato com notificação se um APK suspeito for detectado\n- Atalho para gerenciar permissões de cada app na lista\n- Correção: Dashboard agora com scroll para não cortar conteúdo\n- Melhorias e estabilidade",
+  "version_code": 9,
+  "version_name": "1.4.2",
+  "changelog": "Novidades da v1.4.2:\n\n- Agendamento inteligente: escaneamento em horário fixo ou por intervalo\n- Seletor de horário com relógio visual para scans diários\n- Configuração movida para o card Proteção Shield\n- Interface de configurações reorganizada e mais limpa\n- Melhorias e estabilidade",
   "download_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "apk_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "min_version_code": 1

@@ -65,6 +65,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".ScanReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>

@@ -35,10 +35,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("scan_settings", Context.MODE_PRIVATE) }
 
-    var scanInterval by remember { mutableIntStateOf(prefs.getInt("scan_interval_hours", 6)) }
     var autoRemoveHigh by remember { mutableStateOf(prefs.getBoolean("auto_remove_high", true)) }
     var autoRemoveMedium by remember { mutableStateOf(prefs.getBoolean("auto_remove_medium", false)) }
-    var showIntervalDialog by remember { mutableStateOf(false) }
     var shieldEnabled by remember { mutableStateOf(ShieldService.isRunning()) }
     var showUpdateDialog by remember { mutableStateOf(false) }
 
@@ -60,53 +58,6 @@ fun SettingsScreen(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Varredura",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Scan automático habilitado")
-                        Text(
-                            "Executa varreduras periódicas em background",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Intervalo de varredura")
-                        Text(
-                            "A cada $scanInterval horas",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                    FilledTonalButton(onClick = { showIntervalDialog = true }) {
-                        Text("Alterar")
-                    }
-                }
-            }
-        }
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -200,6 +151,152 @@ fun SettingsScreen(
                             }
                         }
                     )
+                }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                var autoScan by remember { mutableStateOf(prefs.getBoolean("auto_scan_enabled", true)) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Agendar scan automático", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Executa escaneamento completo automaticamente",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = autoScan,
+                        onCheckedChange = { enabled ->
+                            autoScan = enabled
+                            prefs.edit().putBoolean("auto_scan_enabled", enabled).apply()
+                            if (enabled) {
+                                BootReceiver.schedulePeriodicScan(context)
+                            } else {
+                                BootReceiver.cancelPeriodicScan(context)
+                            }
+                        }
+                    )
+                }
+
+                if (autoScan) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    var useTimeSchedule by remember { mutableStateOf(prefs.getBoolean("use_time_schedule", false)) }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Usar horário fixo", style = MaterialTheme.typography.bodyMedium)
+                        Switch(
+                            checked = useTimeSchedule,
+                            onCheckedChange = { enabled ->
+                                useTimeSchedule = enabled
+                                prefs.edit().putBoolean("use_time_schedule", enabled).apply()
+                                if (enabled) {
+                                    BootReceiver.scheduleAtTime(context)
+                                } else {
+                                    BootReceiver.schedulePeriodicScan(context)
+                                }
+                            }
+                        )
+                    }
+
+                    if (useTimeSchedule) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        var hour by remember { mutableIntStateOf(prefs.getInt("scheduled_hour", 3)) }
+                        var minute by remember { mutableIntStateOf(prefs.getInt("scheduled_minute", 0)) }
+                        var showTimePicker by remember { mutableStateOf(false) }
+
+                        TextButton(onClick = { showTimePicker = true }) {
+                            Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Horário: %02d:%02d".format(hour, minute))
+                        }
+
+                        if (showTimePicker) {
+                            AlertDialog(
+                                onDismissRequest = { showTimePicker = false },
+                                title = { Text("Horário do scan") },
+                                text = {
+                                    val timePickerState = rememberTimePickerState(
+                                        initialHour = hour,
+                                        initialMinute = minute,
+                                        is24Hour = true
+                                    )
+                                    Column {
+                                        Text("Escolha o horário para o scan diário:", style = MaterialTheme.typography.bodyMedium)
+                                        Spacer(Modifier.height(8.dp))
+                                        TimePicker(state = timePickerState)
+                                        LaunchedEffect(timePickerState.hour, timePickerState.minute) {
+                                            hour = timePickerState.hour
+                                            minute = timePickerState.minute
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(onClick = {
+                                        prefs.edit()
+                                            .putInt("scheduled_hour", hour)
+                                            .putInt("scheduled_minute", minute)
+                                            .apply()
+                                        BootReceiver.scheduleAtTime(context)
+                                        showTimePicker = false
+                                    }) { Text("OK") }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { showTimePicker = false }) { Text("Cancelar") }
+                                }
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        val options = listOf(1 to "1 hora", 2 to "2 horas", 3 to "3 horas", 6 to "6 horas", 12 to "12 horas", 24 to "24 horas")
+                        var scanInterval by remember { mutableIntStateOf(prefs.getInt("scan_interval_hours", 6)) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Intervalo", style = MaterialTheme.typography.bodyMedium)
+                            var expanded by remember { mutableStateOf(false) }
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                OutlinedTextField(
+                                    value = "${scanInterval}h",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    modifier = Modifier.menuAnchor().width(120.dp),
+                                    singleLine = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) }
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    options.forEach { (hours, label) ->
+                                        DropdownMenuItem(
+                                            text = { Text(label) },
+                                            onClick = {
+                                                scanInterval = hours
+                                                prefs.edit().putInt("scan_interval_hours", hours).apply()
+                                                BootReceiver.schedulePeriodicScan(context)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -457,43 +554,6 @@ fun SettingsScreen(
                 }
             }
         }
-    }
-
-    if (showIntervalDialog) {
-        val intervals = listOf(1, 2, 3, 6, 12, 24)
-        AlertDialog(
-            onDismissRequest = { showIntervalDialog = false },
-            title = { Text("Intervalo de varredura") },
-            text = {
-                Column {
-                    intervals.forEach { hours ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = scanInterval == hours,
-                                onClick = {
-                                    scanInterval = hours
-                                    prefs.edit().putInt("scan_interval_hours", hours).apply()
-                                    BootReceiver.schedulePeriodicScan(context)
-                                    showIntervalDialog = false
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("A cada $hours horas")
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showIntervalDialog = false }) {
-                    Text("Cancelar")
-                }
-            }
-        )
     }
 }
 
