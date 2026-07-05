@@ -1,7 +1,7 @@
 {
-  "version_code": 7,
-  "version_name": "1.4.0",
-  "changelog": "Novidades da v1.4.0:\n\n- Escâner de permissões: veja todos os apps com acesso a câmera, microfone, localização e mais\n- Mapa de permissões perigosas com filtros por nível de risco\n- Dicas diárias de segurança personalizadas no Painel\n- Assistente de voz (TTS) opcional para alertas de segurança\n- Proteção anti-clonagem: verificação de assinatura do APK na inicialização\n- Licença MIT adicionada ao repositório\n- Melhorias de performance e segurança",
+  "version_code": 8,
+  "version_name": "1.4.1",
+  "changelog": "Novidades da v1.4.1:\n\n- WebGuard: monitoramento de downloads maliciosos em tempo real\n- Escaneia APKs baixados automaticamente antes de você abri-los\n- Alerta imediato com notificação se um APK suspeito for detectado\n- Atalho para gerenciar permissões de cada app na lista\n- Correção: Dashboard agora com scroll para não cortar conteúdo\n- Melhorias e estabilidade",
   "download_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "apk_url": "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk",
   "min_version_code": 1

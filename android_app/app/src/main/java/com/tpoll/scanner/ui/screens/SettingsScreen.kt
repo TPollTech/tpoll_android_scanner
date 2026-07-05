@@ -281,6 +281,42 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
+                    text = "WebGuard",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val webGuard = com.tpoll.scanner.webguard.WebGuard(context)
+                var webGuardEnabled by remember { mutableStateOf(webGuard.isEnabled()) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Monitorar downloads", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Escaneia APKs baixados automaticamente em busca de malware",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = webGuardEnabled,
+                        onCheckedChange = { enabled ->
+                            webGuardEnabled = enabled
+                            webGuard.setEnabled(enabled)
+                        }
+                    )
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
                     text = "Atualizações",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold

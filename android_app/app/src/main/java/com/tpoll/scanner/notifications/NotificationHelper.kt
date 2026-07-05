@@ -21,9 +21,11 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_SCAN = "scan_channel"
         const val CHANNEL_THREATS = "threats_channel"
         const val CHANNEL_PROTECTION = "protection_channel"
+        const val CHANNEL_WEBGUARD = "webguard_channel"
         const val NOTIFICATION_SCAN_ID = 1001
         const val NOTIFICATION_THREATS_ID = 1002
         const val NOTIFICATION_SHIELD_ALERT_BASE = 2000
+        const val NOTIFICATION_WEBGUARD_BASE = 3000
     }
 
     init {
@@ -60,9 +62,19 @@ class NotificationHelper(private val context: Context) {
             setShowBadge(false)
         }
 
+        val webguardChannel = NotificationChannel(
+            CHANNEL_WEBGUARD,
+            "WebGuard",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Alertas de downloads maliciosos detectados"
+            enableVibration(true)
+        }
+
         manager.createNotificationChannel(scanChannel)
         manager.createNotificationChannel(threatsChannel)
         manager.createNotificationChannel(protectionChannel)
+        manager.createNotificationChannel(webguardChannel)
     }
 
     private fun openAppIntent(): PendingIntent {
@@ -207,6 +219,29 @@ class NotificationHelper(private val context: Context) {
             .build()
 
         manager.notify(4001, notification)
+    }
+
+    fun showWebGuardAlert(fileName: String, threatDetail: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(context, com.tpoll.scanner.MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_WEBGUARD)
+            .setSmallIcon(com.tpoll.scanner.R.drawable.ic_shield)
+            .setContentTitle("APK malicioso detectado!")
+            .setContentText("$fileName - $threatDetail")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("O arquivo $fileName foi baixado e parece ser malicioso.\n$threatDetail\n\nRecomendamos excluir o arquivo imediatamente."))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        manager.notify(NOTIFICATION_WEBGUARD_BASE + fileName.hashCode() % 1000, notification)
     }
 
     fun cancelAll() {

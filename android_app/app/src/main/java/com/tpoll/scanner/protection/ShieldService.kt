@@ -16,6 +16,9 @@ import com.tpoll.scanner.model.AppFinding
 import com.tpoll.scanner.model.QuarantinedApp
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.notifications.NotificationHelper
+import com.tpoll.scanner.webguard.WebGuard
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
 
 class ShieldService : Service() {
@@ -119,6 +122,11 @@ class ShieldService : Service() {
                         app.notificationHelper.showShieldAlert(threat)
                         autoRemoveThreat(threat)
                     }
+                }
+
+                val webGuard = WebGuard(this@ShieldService)
+                if (webGuard.isEnabled()) {
+                    withContext(Dispatchers.IO) { webGuard.scanDownloads() }
                 }
 
                 val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
