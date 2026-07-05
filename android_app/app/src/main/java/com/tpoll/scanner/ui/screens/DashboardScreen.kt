@@ -26,7 +26,8 @@ import com.tpoll.scanner.ui.theme.*
 @Composable
 fun DashboardScreen(
     modifier: Modifier = Modifier,
-    onNavigateToHistory: () -> Unit = {}
+    onNavigateToHistory: () -> Unit = {},
+    onNavigateToHealth: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("scan_results", Context.MODE_PRIVATE)
@@ -220,6 +221,47 @@ fun DashboardScreen(
                 value = lastMedium.toString(),
                 color = MediumRiskColor
             )
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onNavigateToHealth() },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Saúde do dispositivo",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Toque para analisar bateria, armazenamento, sensores e mais",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
+            }
         }
 
         Card(modifier = Modifier.fillMaxWidth()) {

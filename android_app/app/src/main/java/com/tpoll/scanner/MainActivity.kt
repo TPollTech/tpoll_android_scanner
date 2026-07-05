@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
 import com.tpoll.scanner.ui.screens.DashboardScreen
+import com.tpoll.scanner.ui.screens.HealthScreen
 import com.tpoll.scanner.ui.screens.HistoryScreen
 import com.tpoll.scanner.ui.screens.SettingsScreen
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
 enum class Screen(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Painel", Icons.Default.Home),
     History("history", "Histórico", Icons.Default.History),
+    Health("health", "Saúde", Icons.Default.Favorite),
     Settings("settings", "Configurações", Icons.Default.Settings)
 }
 
@@ -99,6 +101,7 @@ fun MainScreen() {
                         text = when (currentScreen) {
                             Screen.Dashboard -> "TPoll Scanner"
                             Screen.History -> "Histórico"
+                            Screen.Health -> "Saúde do dispositivo"
                             Screen.Settings -> "Configurações"
                         }
                     )
@@ -123,9 +126,11 @@ fun MainScreen() {
         ) {
             when (currentScreen) {
                 Screen.Dashboard -> DashboardScreen(
-                    onNavigateToHistory = { currentScreen = Screen.History }
+                    onNavigateToHistory = { currentScreen = Screen.History },
+                    onNavigateToHealth = { currentScreen = Screen.Health }
                 )
                 Screen.History -> HistoryScreen()
+                Screen.Health -> HealthScreen()
                 Screen.Settings -> SettingsScreen()
             }
         }

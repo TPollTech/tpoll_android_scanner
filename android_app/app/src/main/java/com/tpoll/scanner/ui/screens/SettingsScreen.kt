@@ -1,6 +1,9 @@
 package com.tpoll.scanner.ui.screens
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Build.VERSION_CODES
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -11,12 +14,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.tpoll.scanner.BootReceiver
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.updater.UpdateChecker
 import com.tpoll.scanner.updater.UpdateDialog
+import java.security.MessageDigest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -232,6 +238,69 @@ fun SettingsScreen(
                 }
             }
         }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Sobre",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "TPoll Scanner v${com.tpoll.scanner.updater.UpdateInfo.currentVersionName}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "App open-source de segurança para Android.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                var showSignature by remember { mutableStateOf(false) }
+
+                TextButton(onClick = { showSignature = !showSignature }) {
+                    Icon(Icons.Default.Fingerprint, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (showSignature) "Ocultar assinatura" else "Verificar assinatura do APK")
+                }
+
+                if (showSignature) {
+                    val signature = remember { getAppSignature(context) }
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Hash SHA-256:",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            SelectionContainer {
+                                Text(
+                                    text = signature,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Compare este hash com o código-fonte em github.com/TPollTech. Se bater, o APK é autêntico.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (showIntervalDialog) {
@@ -269,5 +338,35 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+}
+
+private fun getAppSignature(context: Context): String {
+    return try {
+        val pm = context.packageManager
+        val packageName = context.packageName
+        val flags = if (Build.VERSION.SDK_INT >= VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        val info = pm.getPackageInfo(packageName, flags)
+
+        val signatures = if (Build.VERSION.SDK_INT >= VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures
+        }
+
+        if (signatures != null && signatures.isNotEmpty()) {
+            val digest = MessageDigest.getInstance("SHA-256")
+            val hash = digest.digest(signatures[0].toByteArray())
+            hash.joinToString("") { "%02x".format(it) }.uppercase()
+                .chunked(2).joinToString(":")
+        } else "Indisponível"
+    } catch (e: Exception) {
+        "Erro ao ler assinatura"
     }
 }
