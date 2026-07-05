@@ -56,6 +56,7 @@ private val LightColorScheme = lightColorScheme(
 val HighRiskColor = Color(0xFFD32F2F)
 val MediumRiskColor = Color(0xFFFFA000)
 val LowRiskColor = Color(0xFF4CAF50)
+val GreenColor = Color(0xFF4CAF50)
 
 @Composable
 fun TPollScannerTheme(

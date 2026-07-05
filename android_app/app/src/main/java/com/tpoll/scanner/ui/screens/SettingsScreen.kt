@@ -14,6 +14,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tpoll.scanner.BootReceiver
+import com.tpoll.scanner.protection.ShieldService
+import com.tpoll.scanner.updater.UpdateChecker
+import com.tpoll.scanner.updater.UpdateDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,6 +30,12 @@ fun SettingsScreen(
     var autoRemoveHigh by remember { mutableStateOf(prefs.getBoolean("auto_remove_high", true)) }
     var autoRemoveMedium by remember { mutableStateOf(prefs.getBoolean("auto_remove_medium", false)) }
     var showIntervalDialog by remember { mutableStateOf(false) }
+    var shieldEnabled by remember { mutableStateOf(ShieldService.isRunning()) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+
+    if (showUpdateDialog) {
+        UpdateDialog(onDismiss = { showUpdateDialog = false })
+    }
 
     Column(
         modifier = modifier
@@ -151,7 +160,7 @@ fun SettingsScreen(
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Base de dados",
+                    text = "Proteção Shield",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -164,16 +173,53 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Versão da base de vírus")
+                        Text("Proteção em tempo real")
                         Text(
-                            "v1.0.0 (incluída no app)",
+                            "Monitora overlays, acessibilidade, admins e listeners 24/7",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = shieldEnabled,
+                        onCheckedChange = { enabled ->
+                            shieldEnabled = enabled
+                            if (enabled) {
+                                ShieldService.start(context)
+                            } else {
+                                ShieldService.stop(context)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Atualizações",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Versão do app")
+                        Text(
+                            "v${com.tpoll.scanner.updater.UpdateInfo.currentVersionName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                     FilledTonalButton(
-                        onClick = { },
-                        enabled = false
+                        onClick = { showUpdateDialog = true }
                     ) {
                         Icon(
                             Icons.Default.Update,
@@ -181,7 +227,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Atualizar")
+                        Text("Verificar")
                     }
                 }
             }

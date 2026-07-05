@@ -1,0 +1,8 @@
+{
+  "version_code": 2,
+  "version_name": "1.1.0",
+  "changelog": "🔥 Novidades da v1.1.0:\n\n- Shield de proteção em tempo real: detecta apps com sobreposição de tela (overlay), serviços de acessibilidade suspeitos, administradores de dispositivo e listeners de notificação\n- App agora é protegido contra captura de tela (FLAG_SECURE)\n- Notificações de alerta para ameaças críticas em tempo real\n- Indicador de proteção no painel principal\n- Melhorias na detecção de malware\n- Correções de estabilidade",
+  "download_url": "https://github.com/TPollTech/tpoll_android_scanner/releases/download/v1.1.0/app-release.apk",
+  "apk_url": "https://github.com/TPollTech/tpoll_android_scanner/releases/download/v1.1.0/app-release.apk",
+  "min_version_code": 1
+}

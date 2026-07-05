@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tpoll.scanner.ScanService
+import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.ui.theme.*
 
 @Composable
@@ -39,6 +40,18 @@ fun DashboardScreen(
     var lastMedium by remember { mutableStateOf(prefs.getInt("last_scan_medium", 0)) }
     var lastRemoved by remember { mutableStateOf(prefs.getInt("last_scan_removed", 0)) }
     var autoScanEnabled by remember { mutableStateOf(settingsPrefs.getBoolean("auto_scan_enabled", true)) }
+
+    val protectionPrefs = context.getSharedPreferences("protection_status", Context.MODE_PRIVATE)
+    var shieldActive by remember { mutableStateOf(ShieldService.isRunning()) }
+    var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("overlay_count", 0) + protectionPrefs.getInt("accessibility_count", 0) + protectionPrefs.getInt("device_admin_count", 0) + protectionPrefs.getInt("notification_listener_count", 0) + protectionPrefs.getInt("installer_count", 0)) }
+
+    LaunchedEffect(shieldActive) {
+        while (true) {
+            kotlinx.coroutines.delay(5000)
+            shieldActive = ShieldService.isRunning()
+            shieldThreats = protectionPrefs.getInt("overlay_count", 0) + protectionPrefs.getInt("accessibility_count", 0) + protectionPrefs.getInt("device_admin_count", 0) + protectionPrefs.getInt("notification_listener_count", 0) + protectionPrefs.getInt("installer_count", 0)
+        }
+    }
 
     LaunchedEffect(isScanning) {
         if (isScanning) {
@@ -118,6 +131,48 @@ fun DashboardScreen(
                         text = "Escaneando apps...",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = if (shieldActive && shieldThreats == 0)
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                else if (shieldActive)
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
+                else
+                    MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = if (shieldActive && shieldThreats == 0) GreenColor
+                    else if (shieldActive) HighRiskColor
+                    else Color.Gray,
+                    modifier = Modifier.size(32.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = if (shieldActive) "Proteção em tempo real ativa" else "Proteção desativada",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (shieldThreats > 0) "$shieldThreats ameaça(s) de shield detectada(s)"
+                        else "Nenhuma ameaça encontrada",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
             }
