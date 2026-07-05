@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="seed">#FF2196F3</color>
+    <color name="high_risk">#FFD32F2F</color>
+    <color name="medium_risk">#FFFFA000</color>
+    <color name="low_risk">#FF4CAF50</color>
+</resources>

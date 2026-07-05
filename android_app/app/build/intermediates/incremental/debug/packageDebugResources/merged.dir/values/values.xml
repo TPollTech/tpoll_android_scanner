@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="high_risk">#FFD32F2F</color>
+    <color name="low_risk">#FF4CAF50</color>
+    <color name="medium_risk">#FFFFA000</color>
+    <color name="seed">#FF2196F3</color>
+    <string name="app_name">TPoll Scanner</string>
+    <string name="auto_remove_high">Remover alto risco automaticamente</string>
+    <string name="auto_remove_medium">Remover médio risco automaticamente</string>
+    <string name="dashboard">Painel</string>
+    <string name="grant_permission">Conceder</string>
+    <string name="high_risk">Alto risco</string>
+    <string name="history">Histórico</string>
+    <string name="kept">Mantido</string>
+    <string name="last_scan">Último scan</string>
+    <string name="low_risk">Baixo risco</string>
+    <string name="medium_risk">Médio risco</string>
+    <string name="no_threats">Nenhuma ameaça detectada</string>
+    <string name="permission_required">Permissão necessária</string>
+    <string name="removed">Removido</string>
+    <string name="scan_complete">Varredura concluída</string>
+    <string name="scan_in_progress">Escaneando…</string>
+    <string name="scan_interval">Intervalo de varredura</string>
+    <string name="settings">Configurações</string>
+    <string name="shield_notification_channel">TPoll Scanner</string>
+    <string name="start_scan">Iniciar varredura</string>
+    <string name="stop_scan">Parar varredura</string>
+    <string name="threats_found">ameaças encontradas</string>
+    <string name="threats_notification_channel">Ameaças Detectadas</string>
+    <string name="threats_removed">ameaças removidas</string>
+    <string name="total_scanned">Total analisados</string>
+    <string name="update_virus_db">Atualizar base de vírus</string>
+    <style name="Theme.TPollScanner" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>

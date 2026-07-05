@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TPoll Scanner</string>
+    <string name="scan_in_progress">Escaneando…</string>
+    <string name="scan_complete">Varredura concluída</string>
+    <string name="threats_found">ameaças encontradas</string>
+    <string name="threats_removed">ameaças removidas</string>
+    <string name="no_threats">Nenhuma ameaça detectada</string>
+    <string name="start_scan">Iniciar varredura</string>
+    <string name="stop_scan">Parar varredura</string>
+    <string name="history">Histórico</string>
+    <string name="settings">Configurações</string>
+    <string name="dashboard">Painel</string>
+    <string name="scan_interval">Intervalo de varredura</string>
+    <string name="auto_remove_high">Remover alto risco automaticamente</string>
+    <string name="auto_remove_medium">Remover médio risco automaticamente</string>
+    <string name="update_virus_db">Atualizar base de vírus</string>
+    <string name="last_scan">Último scan</string>
+    <string name="total_scanned">Total analisados</string>
+    <string name="high_risk">Alto risco</string>
+    <string name="medium_risk">Médio risco</string>
+    <string name="low_risk">Baixo risco</string>
+    <string name="removed">Removido</string>
+    <string name="kept">Mantido</string>
+    <string name="shield_notification_channel">TPoll Scanner</string>
+    <string name="threats_notification_channel">Ameaças Detectadas</string>
+    <string name="permission_required">Permissão necessária</string>
+    <string name="grant_permission">Conceder</string>
+</resources>

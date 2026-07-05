@@ -1,0 +1,102 @@
+{
+  "_meta": {
+    "version": "1.0.0",
+    "last_updated": "2025-01-01",
+    "description": "Base de dados de apps maliciosos conhecidos"
+  },
+  "known_threats": {
+    "com.cleanmaster.masterguard": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Clean Master - adware conhecido"
+    },
+    "com.kcleaner.booster": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "KC Cleaner - programa potencialmente indesejado"
+    },
+    "com.rambo.cleaner": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Rambo Cleaner - adware"
+    },
+    "com.turbo.cleaner": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Turbo Cleaner - adware"
+    },
+    "com.speed.booster.pro": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Speed Booster Pro - PUP"
+    },
+    "com.battery.saver.plus": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Battery Saver Plus - adware leve"
+    },
+    "com.antivirus.security.shield": {
+      "type": "fake_av",
+      "severity": "high",
+      "description": "Fake antivirus - golpe de assinatura"
+    },
+    "com.vpn.unlimited.free": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "VPN falso - coleta dados do usuário"
+    },
+    "com.ads.wrapper": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Wrapper de ads - injeta publicidade"
+    },
+    "com.notification.push.ads": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Push ads via notificação"
+    },
+    "com.keyboard.keylogger": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "Teclado com keylogger"
+    },
+    "com.wallpaper.hd.free": {
+      "type": "adware",
+      "severity": "low",
+      "description": "Wallpaper com ads excessivos"
+    },
+    "com.phone.optimizer.pro": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Otimizador falso"
+    },
+    "com.junk.cleaner.pro": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Junk Cleaner Pro - adware"
+    },
+    "com.cache.booster.speed": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Cache Booster - PUP"
+    }
+  },
+  "suspicious_patterns": [
+    {
+      "pattern": ".*\\.service\\..*",
+      "reason": "Pacote contém '.service.' (pode ser serviço oculto)"
+    },
+    {
+      "pattern": ".*\\.update\\..*",
+      "reason": "Pacote contém '.update.' (pode ser atualizador oculto)"
+    },
+    {
+      "pattern": ".*\\.helper\\..*",
+      "reason": "Pacote contém '.helper.' (pode ser helper malicioso)"
+    },
+    {
+      "pattern": "com\\..*\\.app\\d+",
+      "reason": "Nome de pacote genérico com número"
+    }
+  ]
+}

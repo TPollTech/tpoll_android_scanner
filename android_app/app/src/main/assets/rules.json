@@ -1,0 +1,100 @@
+{
+  "trusted_installers": [
+    "com.android.vending",
+    "com.sec.android.app.samsungapps",
+    "com.amazon.venezia",
+    "com.huawei.appmarket",
+    "com.xiaomi.mipicks",
+    "com.heytap.market",
+    "com.vivo.appstore",
+    "com.android.packageinstaller",
+    "com.android.shell"
+  ],
+  "suspicious_terms": [
+    "clean", "cleaner", "phonecleaner", "junk", "cachecleaner", "cache",
+    "boost", "booster", "speed", "optimizer", "optimiser", "ramclean",
+    "battery", "batterysaver", "saver", "cooler", "antivirus", "security",
+    "safe", "protect", "vpn", "proxy", "browser", "launcher", "keyboard",
+    "wallpaper", "theme", "notification", "reward", "earn", "cash", "ads",
+    "adservice", "permission", "accessibility", "scanner", "master", "turbo"
+  ],
+  "high_risk_permissions": {
+    "android.permission.SYSTEM_ALERT_WINDOW": 35,
+    "android.permission.REQUEST_INSTALL_PACKAGES": 35,
+    "android.permission.QUERY_ALL_PACKAGES": 25,
+    "android.permission.BIND_ACCESSIBILITY_SERVICE": 45,
+    "android.permission.RECEIVE_BOOT_COMPLETED": 15,
+    "android.permission.FOREGROUND_SERVICE": 10,
+    "android.permission.READ_SMS": 30,
+    "android.permission.SEND_SMS": 45,
+    "android.permission.RECEIVE_SMS": 35,
+    "android.permission.READ_CONTACTS": 25,
+    "android.permission.WRITE_CONTACTS": 25,
+    "android.permission.READ_PHONE_STATE": 20,
+    "android.permission.CALL_PHONE": 25,
+    "android.permission.POST_NOTIFICATIONS": 10,
+    "android.permission.PACKAGE_USAGE_STATS": 35,
+    "android.permission.MANAGE_EXTERNAL_STORAGE": 25,
+    "android.permission.READ_EXTERNAL_STORAGE": 10,
+    "android.permission.WRITE_EXTERNAL_STORAGE": 10,
+    "android.permission.CAMERA": 8,
+    "android.permission.RECORD_AUDIO": 12,
+    "android.permission.ACCESS_FINE_LOCATION": 20,
+    "android.permission.ACCESS_COARSE_LOCATION": 12,
+    "android.permission.PROCESS_OUTGOING_CALLS": 30,
+    "android.permission.BODY_SENSORS": 15,
+    "android.permission.READ_CALENDAR": 20,
+    "android.permission.WRITE_CALENDAR": 20
+  },
+  "high_risk_appops": {
+    "SYSTEM_ALERT_WINDOW": 35,
+    "GET_USAGE_STATS": 35,
+    "REQUEST_INSTALL_PACKAGES": 35,
+    "ACCESS_NOTIFICATIONS": 20,
+    "READ_CLIPBOARD": 20,
+    "MONITOR_INPUT": 25,
+    "PLAY_AUDIO": 15,
+    "COARSE_LOCATION": 15,
+    "FINE_LOCATION": 20,
+    "CAMERA": 15,
+    "RECORD_AUDIO": 20,
+    "READ_SMS": 25,
+    "WRITE_SMS": 25,
+    "SEND_SMS": 30,
+    "READ_CONTACTS": 20,
+    "WRITE_CONTACTS": 20,
+    "READ_PHONE_STATE": 20,
+    "CALL_PHONE": 25,
+    "READ_CALENDAR": 15,
+    "WRITE_CALENDAR": 15,
+    "MANAGE_EXTERNAL_STORAGE": 30,
+    "ACCESS_MEDIA_LOCATION": 20
+  },
+  "dangerous_combinations": [
+    {
+      "permissions": ["SYSTEM_ALERT_WINDOW", "RECEIVE_BOOT_COMPLETED"],
+      "bonus": 25,
+      "reason": "Sobreposição de tela + inicialização automática"
+    },
+    {
+      "permissions": ["SYSTEM_ALERT_WINDOW", "FOREGROUND_SERVICE"],
+      "bonus": 25,
+      "reason": "Sobreposição de tela + serviço em segundo plano"
+    },
+    {
+      "permissions": ["REQUEST_INSTALL_PACKAGES", "QUERY_ALL_PACKAGES"],
+      "bonus": 20,
+      "reason": "Instalação de APKs + acesso total a apps"
+    },
+    {
+      "permissions": ["BIND_ACCESSIBILITY_SERVICE", "SYSTEM_ALERT_WINDOW"],
+      "bonus": 30,
+      "reason": "Serviço de acessibilidade + sobreposição (possível sequestro)"
+    },
+    {
+      "permissions": ["READ_SMS", "SEND_SMS", "READ_CONTACTS"],
+      "bonus": 20,
+      "reason": "Leitura de SMS + envio + contatos (possível spyware)"
+    }
+  ]
+}
