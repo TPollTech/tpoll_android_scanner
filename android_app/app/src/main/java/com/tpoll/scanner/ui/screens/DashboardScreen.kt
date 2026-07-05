@@ -43,13 +43,15 @@ fun DashboardScreen(
 
     val protectionPrefs = context.getSharedPreferences("protection_status", Context.MODE_PRIVATE)
     var shieldActive by remember { mutableStateOf(ShieldService.isRunning()) }
-    var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("overlay_count", 0) + protectionPrefs.getInt("accessibility_count", 0) + protectionPrefs.getInt("device_admin_count", 0) + protectionPrefs.getInt("notification_listener_count", 0) + protectionPrefs.getInt("installer_count", 0)) }
+    var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("threat_count", 0)) }
+    var malwareCount by remember { mutableStateOf(protectionPrefs.getInt("malware_count", 0)) }
 
     LaunchedEffect(shieldActive) {
         while (true) {
             kotlinx.coroutines.delay(5000)
             shieldActive = ShieldService.isRunning()
-            shieldThreats = protectionPrefs.getInt("overlay_count", 0) + protectionPrefs.getInt("accessibility_count", 0) + protectionPrefs.getInt("device_admin_count", 0) + protectionPrefs.getInt("notification_listener_count", 0) + protectionPrefs.getInt("installer_count", 0)
+            shieldThreats = protectionPrefs.getInt("threat_count", 0)
+            malwareCount = protectionPrefs.getInt("malware_count", 0)
         }
     }
 
@@ -158,7 +160,8 @@ fun DashboardScreen(
                     imageVector = Icons.Default.Shield,
                     contentDescription = null,
                     tint = if (shieldActive && shieldThreats == 0) GreenColor
-                    else if (shieldActive) HighRiskColor
+                    else if (shieldActive && malwareCount > 0) HighRiskColor
+                    else if (shieldActive) MediumRiskColor
                     else Color.Gray,
                     modifier = Modifier.size(32.dp)
                 )
@@ -169,8 +172,11 @@ fun DashboardScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (shieldThreats > 0) "$shieldThreats ameaça(s) de shield detectada(s)"
-                        else "Nenhuma ameaça encontrada",
+                        text = when {
+                            malwareCount > 0 -> "$malwareCount malware(s) detectado(s)! Toque nas Configurações"
+                            shieldThreats > 0 -> "$shieldThreats app(s) suspeito(s) encontrado(s)"
+                            else -> "Nenhuma ameaça encontrada"
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )

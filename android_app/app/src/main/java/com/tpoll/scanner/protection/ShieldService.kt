@@ -113,25 +113,17 @@ class ShieldService : Service() {
 
                 if (status.hasCriticalThreats) {
                     val app = application as com.tpoll.scanner.TPollApp
-                    for (threat in status.overlayApps) {
-                        app.notificationHelper.showShieldAlert(threat)
-                    }
-                    for (threat in status.accessibilityAbusers) {
-                        app.notificationHelper.showShieldAlert(threat)
-                    }
-                    for (threat in status.deviceAdmins) {
+                    val criticalThreats = status.threats.filter { it.severity >= 70 }
+                    for (threat in criticalThreats) {
                         app.notificationHelper.showShieldAlert(threat)
                     }
                 }
 
                 val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
                 prefs.edit()
-                    .putInt("overlay_count", status.overlayApps.size)
-                    .putInt("accessibility_count", status.accessibilityAbusers.size)
-                    .putInt("device_admin_count", status.deviceAdmins.size)
-                    .putInt("notification_listener_count", status.notificationListeners.size)
-                    .putInt("installer_count", status.installerApps.size)
-                    .putInt("usage_stats_count", status.usageStatsAbusers.size)
+                    .putInt("threat_count", status.totalThreats)
+                    .putInt("malware_count", status.threats.count { it.isMalware })
+                    .putInt("critical_count", status.threats.count { it.severity >= 70 })
                     .putLong("last_check", status.lastChecked)
                     .putBoolean("real_time_active", true)
                     .apply()
