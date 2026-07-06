@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="TPoll Scanner: app Android para escanear aplicativos suspeitos, classificar riscos e proteger aparelhos com monitoramento inteligente.">
+  <meta name="theme-color" content="#08111f">
+  <title>TPoll Scanner | Segurança Android</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #07111f;
+      --bg-soft: #0d1b2e;
+      --card: rgba(255,255,255,.095);
+      --card-strong: rgba(255,255,255,.14);
+      --line: rgba(255,255,255,.16);
+      --text: #eef6ff;
+      --muted: #a9bbd5;
+      --brand: #34d399;
+      --brand-2: #38bdf8;
+      --warning: #fbbf24;
+      --danger: #fb7185;
+      --shadow: 0 24px 80px rgba(0,0,0,.35);
+      --radius: 30px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 10% 15%, rgba(56,189,248,.22), transparent 28%),
+        radial-gradient(circle at 82% 18%, rgba(52,211,153,.18), transparent 28%),
+        radial-gradient(circle at 58% 90%, rgba(99,102,241,.20), transparent 30%),
+        linear-gradient(135deg, #06101d 0%, #07111f 45%, #0c1628 100%);
+      color: var(--text);
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .page {
+      min-height: 100svh;
+      padding: clamp(14px, 2.6vw, 34px);
+      display: grid;
+      place-items: center;
+      position: relative;
+      isolation: isolate;
+    }
+
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 42px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .shell {
+      width: min(1180px, 100%);
+      height: min(720px, calc(100svh - clamp(28px, 5vw, 68px)));
+      min-height: 560px;
+      display: grid;
+      grid-template-columns: 1.08fr .92fr;
+      gap: clamp(14px, 2.1vw, 28px);
+      align-items: stretch;
+    }
+
+    .hero,
+    .preview {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      padding: clamp(22px, 3vw, 42px);
+      background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.055));
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      box-shadow: 0 12px 30px rgba(52,211,153,.24);
+    }
+
+    .logo svg { width: 28px; height: 28px; }
+
+    .brand-text strong {
+      display: block;
+      font-size: 1.05rem;
+      letter-spacing: -.02em;
+    }
+
+    .brand-text span {
+      display: block;
+      color: var(--muted);
+      font-size: .86rem;
+      margin-top: 2px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 9px 12px;
+      border: 1px solid rgba(52,211,153,.28);
+      border-radius: 999px;
+      background: rgba(52,211,153,.10);
+      color: #c7ffdf;
+      font-weight: 700;
+      font-size: .82rem;
+    }
+
+    h1 {
+      margin: 18px 0 12px;
+      max-width: 780px;
+      font-size: clamp(2.1rem, 5.1vw, 5rem);
+      line-height: .92;
+      letter-spacing: -.07em;
+    }
+
+    h1 span {
+      display: block;
+      background: linear-gradient(90deg, #fff, #d8f8ff 42%, #9ff3c8 88%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .lead {
+      max-width: 680px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(.98rem, 1.45vw, 1.18rem);
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 22px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,.16);
+      font-weight: 800;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      will-change: transform;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    .btn-primary {
+      color: #04111d;
+      background: linear-gradient(135deg, var(--brand), var(--brand-2));
+      border-color: transparent;
+      box-shadow: 0 16px 36px rgba(52,211,153,.24);
+    }
+
+    .btn-ghost { background: rgba(255,255,255,.075); }
+    .btn-ghost:hover { border-color: rgba(255,255,255,.30); }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: .87rem;
+    }
+
+    .pill {
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+
+    .benefits {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .benefit {
+      min-height: 112px;
+      padding: 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.11);
+      background: rgba(255,255,255,.06);
+    }
+
+    .benefit b {
+      display: block;
+      margin-bottom: 6px;
+      font-size: .92rem;
+      letter-spacing: -.01em;
+    }
+
+    .benefit p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.42;
+    }
+
+    .preview {
+      position: relative;
+      padding: clamp(18px, 2.6vw, 34px);
+      background:
+        linear-gradient(145deg, rgba(8,17,31,.88), rgba(16,31,52,.75)),
+        rgba(255,255,255,.06);
+      display: grid;
+      place-items: center;
+    }
+
+    .orb {
+      position: absolute;
+      width: 190px;
+      height: 190px;
+      border-radius: 999px;
+      filter: blur(4px);
+      opacity: .38;
+    }
+
+    .orb.one { top: 34px; right: 28px; background: radial-gradient(circle, rgba(56,189,248,.8), transparent 66%); }
+    .orb.two { bottom: 24px; left: 10px; background: radial-gradient(circle, rgba(52,211,153,.62), transparent 66%); }
+
+    .phone {
+      width: min(315px, 88%);
+      aspect-ratio: 9 / 18.5;
+      border-radius: 34px;
+      padding: 12px;
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(145deg, #101c2d, #020814);
+      border: 1px solid rgba(255,255,255,.20);
+      box-shadow: 0 28px 70px rgba(0,0,0,.50);
+    }
+
+    .screen {
+      height: 100%;
+      border-radius: 26px;
+      padding: 16px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(56,189,248,.18), transparent 34%),
+        linear-gradient(180deg, #0c1729, #07101e);
+      border: 1px solid rgba(255,255,255,.10);
+      overflow: hidden;
+    }
+
+    .notch {
+      width: 72px;
+      height: 6px;
+      border-radius: 999px;
+      margin: 0 auto 14px;
+      background: rgba(255,255,255,.22);
+    }
+
+    .screen h2 {
+      margin: 0 0 4px;
+      font-size: 1.06rem;
+      letter-spacing: -.03em;
+    }
+
+    .screen small { color: var(--muted); }
+
+    .score-card {
+      margin: 16px 0;
+      padding: 16px;
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(52,211,153,.18), rgba(56,189,248,.12));
+      border: 1px solid rgba(52,211,153,.22);
+    }
+
+    .score-card span {
+      display: block;
+      color: var(--muted);
+      font-size: .77rem;
+    }
+
+    .score-card strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 2.6rem;
+      line-height: 1;
+      letter-spacing: -.08em;
+    }
+
+    .scan-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,.09);
+    }
+
+    .scan-item:last-child { border-bottom: 0; }
+
+    .scan-item b {
+      display: block;
+      font-size: .84rem;
+      margin-bottom: 3px;
+    }
+
+    .scan-item span {
+      display: block;
+      max-width: 150px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: .72rem;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .risk {
+      flex: 0 0 auto;
+      padding: 7px 8px;
+      border-radius: 999px;
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+
+    .risk.high { color: #ffe4e8; background: rgba(251,113,133,.18); border: 1px solid rgba(251,113,133,.35); }
+    .risk.medium { color: #fff4c8; background: rgba(251,191,36,.15); border: 1px solid rgba(251,191,36,.30); }
+    .risk.low { color: #d5ffe6; background: rgba(52,211,153,.13); border: 1px solid rgba(52,211,153,.28); }
+
+    .footer-note {
+      color: rgba(238,246,255,.56);
+      font-size: .78rem;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: 1fr;
+        min-height: 0;
+        height: calc(100svh - 28px);
+      }
+
+      .preview { display: none; }
+
+      .benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .benefit { min-height: 98px; }
+      h1 { font-size: clamp(2.25rem, 12vw, 4.3rem); }
+    }
+
+    @media (max-width: 560px) {
+      .page { padding: 10px; }
+      .page::before { display: none; }
+      .hero { padding: 18px; border-radius: 24px; }
+      .shell { height: calc(100svh - 20px); }
+      .brand-text span { display: none; }
+      .tag { font-size: .75rem; padding: 8px 10px; }
+      .lead { font-size: .94rem; line-height: 1.44; }
+      .actions { margin-top: 16px; }
+      .btn { width: 100%; min-height: 46px; }
+      .benefits { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+      .benefit { padding: 12px; min-height: 92px; }
+      .benefit p { font-size: .74rem; line-height: 1.32; }
+      .meta { font-size: .76rem; }
+      .footer-note { font-size: .72rem; }
+    }
+
+    @media (max-height: 690px) {
+      .shell { min-height: 0; height: calc(100svh - 20px); }
+      .hero { gap: 12px; padding: 18px 22px; }
+      h1 { margin: 10px 0 8px; }
+      .lead { line-height: 1.38; }
+      .benefits { margin-top: 12px; }
+      .benefit { min-height: auto; padding: 11px; }
+      .benefit p { line-height: 1.3; }
+      .meta { margin-top: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" aria-label="Landing page do TPoll Scanner">
+    <section class="shell">
+      <div class="hero">
+        <div>
+          <div class="brand" aria-label="TPoll Scanner">
+            <div class="logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" role="img">
+                <path d="M12 2.8 19 5.7v5.2c0 4.5-2.9 8.7-7 10.3-4.1-1.6-7-5.8-7-10.3V5.7l7-2.9Z" fill="rgba(4,17,29,.92)"/>
+                <path d="m8.6 12 2.1 2.1 4.8-5" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="brand-text">
+              <strong>TPoll Scanner</strong>
+              <span>Segurança Android para assistência técnica</span>
+            </div>
+          </div>
+
+          <p class="tag">APK release disponível para download</p>
+
+          <h1>Proteção simples para <span>apps suspeitos no Android.</span></h1>
+
+          <p class="lead">
+            Escaneie aplicativos instalados, veja o nível de risco e monitore ameaças com recursos como Shield, WebGuard e scan automático. Feito para bancada, manutenção e conferência rápida de celulares.
+          </p>
+
+          <div class="actions" aria-label="Ações principais">
+            <a id="downloadBtn" class="btn btn-primary" href="https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk" download>
+              Baixar APK v1.4.2
+            </a>
+            <a class="btn btn-ghost" href="https://github.com/TPollTech/tpoll_android_scanner" target="_blank" rel="noopener">
+              Ver código-fonte
+            </a>
+          </div>
+
+          <div class="meta" aria-label="Informações rápidas">
+            <span class="pill" id="versionPill">Versão 1.4.2</span>
+            <span class="pill">Android 8+</span>
+            <span class="pill">Código aberto</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="benefits" aria-label="Benefícios do aplicativo">
+            <article class="benefit">
+              <b>Risco claro</b>
+              <p>Classificação BAIXO, MÉDIO e ALTO com pontuação e motivos.</p>
+            </article>
+            <article class="benefit">
+              <b>Shield 24/7</b>
+              <p>Monitora overlays, acessibilidade, administradores e listeners.</p>
+            </article>
+            <article class="benefit">
+              <b>WebGuard</b>
+              <p>Escaneia APKs baixados automaticamente em busca de malware.</p>
+            </article>
+            <article class="benefit">
+              <b>Scan agendado</b>
+              <p>Roda por intervalo ou em horário fixo escolhido pelo usuário.</p>
+            </article>
+            <article class="benefit">
+              <b>Remoção prática</b>
+              <p>Ajuda a lidar com apps de risco com controles configuráveis.</p>
+            </article>
+            <article class="benefit">
+              <b>Atualizações</b>
+              <p>Verificação de versão e download direto pelo GitHub.</p>
+            </article>
+          </div>
+          <p class="footer-note">Use somente em aparelhos próprios ou com autorização do cliente. Revise os alertas antes de remover aplicativos importantes.</p>
+        </div>
+      </div>
+
+      <aside class="preview" aria-label="Prévia visual do aplicativo">
+        <div class="orb one"></div>
+        <div class="orb two"></div>
+        <div class="phone" aria-hidden="true">
+          <div class="screen">
+            <div class="notch"></div>
+            <h2>Scan concluído</h2>
+            <small>Apps analisados e organizados por risco</small>
+
+            <div class="score-card">
+              <span>Pontuação mais alta</span>
+              <strong>86</strong>
+            </div>
+
+            <div class="scan-item">
+              <div>
+                <b>App suspeito</b>
+                <span>overlay.service.fake</span>
+              </div>
+              <span class="risk high">ALTO</span>
+            </div>
+            <div class="scan-item">
+              <div>
+                <b>Instalador externo</b>
+                <span>unknown.source.apk</span>
+              </div>
+              <span class="risk medium">MÉDIO</span>
+            </div>
+            <div class="scan-item">
+              <div>
+                <b>App confiável</b>
+                <span>com.android.safe</span>
+              </div>
+              <span class="risk low">BAIXO</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const fallbackApk = "https://github.com/TPollTech/tpoll_android_scanner/raw/main/TPollScanner-release.apk";
+    const downloadBtn = document.getElementById("downloadBtn");
+    const versionPill = document.getElementById("versionPill");
+
+    fetch("update.json", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!data) return;
+        const version = data.version_name || "1.4.2";
+        const url = data.apk_url || data.download_url || fallbackApk;
+        downloadBtn.href = url;
+        downloadBtn.textContent = `Baixar APK v${version}`;
+        versionPill.textContent = `Versão ${version}`;
+      })
+      .catch(() => {
+        downloadBtn.href = fallbackApk;
+      });
+  </script>
+</body>
+</html>
