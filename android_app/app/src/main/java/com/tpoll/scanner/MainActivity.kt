@@ -9,13 +9,20 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.tpoll.scanner.ui.screens.DashboardScreen
 import com.tpoll.scanner.ui.screens.HealthScreen
@@ -108,27 +115,63 @@ fun MainScreen() {
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = when (currentScreen) {
-                            Screen.Dashboard -> "TPoll Scanner"
-                            Screen.History -> "Histórico"
-                            Screen.Health -> "Saúde do dispositivo"
-                            Screen.Settings -> "Configurações"
-                        }
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shadowElevation = 4.dp
+            ) {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = when (currentScreen) {
+                                Screen.Dashboard -> "TPoll Scanner"
+                                Screen.History -> "Histórico"
+                                Screen.Health -> "Saúde do dispositivo"
+                                Screen.Settings -> "Configurações"
+                            },
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
                     )
-                }
-            )
+                )
+            }
         },
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 8.dp
+            ) {
                 screens.forEach { screen ->
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = screen.label) },
-                        label = { Text(screen.label) },
+                        icon = {
+                            val isSelected = currentScreen.route == screen.route
+                            if (isSelected) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                ) {
+                                    Box(modifier = Modifier.padding(8.dp)) {
+                                        Icon(screen.icon, contentDescription = screen.label, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            } else {
+                                Icon(screen.icon, contentDescription = screen.label, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                            }
+                        },
+                        label = {
+                            Text(
+                                screen.label,
+                                fontWeight = if (currentScreen.route == screen.route) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 11.sp
+                            )
+                        },
                         selected = currentScreen.route == screen.route,
-                        onClick = { currentScreen = screen }
+                        onClick = { currentScreen = screen },
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                        )
                     )
                 }
             }

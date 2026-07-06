@@ -3,6 +3,7 @@ package com.tpoll.scanner.ui.screens
 import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -80,39 +83,53 @@ fun DashboardScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
+                        )
+                    )
+                )
+                .padding(horizontal = 24.dp, vertical = 28.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "TPoll Scanner",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "Proteção automática contra apps maliciosos",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                )
+                Column {
+                    Text(
+                        text = "TPoll Scanner",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Proteção automática contra apps maliciosos",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.padding(12.dp).size(36.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
         }
 
@@ -122,299 +139,303 @@ fun DashboardScreen(
             exit = fadeOut() + shrinkVertically()
         ) {
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
+                ),
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.5.dp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Text(
                         text = "Escaneando apps...",
                         style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                 }
             }
         }
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(enabled = shieldThreats > 0) { onNavigateToHistory() },
-            colors = CardDefaults.cardColors(
-                containerColor = when {
-                    !shieldActive -> MaterialTheme.colorScheme.surfaceVariant
-                    shieldThreats == 0 -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                    malwareCount > 0 -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f)
-                    else -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f)
-                }
-            )
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Shield,
-                    contentDescription = null,
-                    tint = if (!shieldActive) Color.Gray
-                    else if (malwareCount > 0) HighRiskColor
-                    else if (shieldThreats > 0) MediumRiskColor
-                    else GreenColor,
-                    modifier = Modifier.size(28.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (shieldActive) "Proteção em tempo real ativa" else "Proteção desativada",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = when {
-                            malwareCount > 0 -> "$malwareCount malware(s) detectado(s)"
-                            shieldThreats > 0 -> "$shieldThreats app(s) suspeito(s) - Toque para ver"
-                            else -> "Nenhuma ameaça encontrada"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                if (shieldThreats > 0) {
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
-                }
-            }
-        }
-
-        var quarantineCount by remember { mutableIntStateOf(0) }
-        LaunchedEffect(Unit) {
-            try { quarantineCount = TPollApp.instance.database.quarantineDao().count() } catch (_: Exception) { }
-        }
-
-        if (quarantineCount > 0) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onNavigateToQuarantine() },
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-                )
+                    .clickable(enabled = shieldThreats > 0) { onNavigateToHistory() },
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Icon(
-                        Icons.Default.Block,
-                        contentDescription = null,
-                        tint = HighRiskColor,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = when {
+                            !shieldActive -> StatusInactive.copy(alpha = 0.15f)
+                            malwareCount > 0 -> ShieldDangerColor.copy(alpha = 0.15f)
+                            shieldThreats > 0 -> ShieldWarningColor.copy(alpha = 0.15f)
+                            else -> StatusActive.copy(alpha = 0.15f)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = if (!shieldActive) StatusInactive
+                            else if (malwareCount > 0) ShieldDangerColor
+                            else if (shieldThreats > 0) ShieldWarningColor
+                            else StatusActive,
+                            modifier = Modifier.padding(10.dp).size(24.dp)
+                        )
+                    }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Quarentena",
+                            text = if (shieldActive) "Proteção ativa" else "Proteção desativada",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "$quarantineCount app(s) removido(s) - Toque para gerenciar",
+                            text = when {
+                                malwareCount > 0 -> "$malwareCount malware(s) detectado(s)"
+                                shieldThreats > 0 -> "$shieldThreats app(s) suspeito(s)"
+                                else -> "Nenhuma ameaça encontrada"
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                    )
+                    if (shieldThreats > 0) {
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
                 }
             }
-        }
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onNavigateToPermissions() },
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-            )
-        ) {
+            var quarantineCount by remember { mutableIntStateOf(0) }
+            LaunchedEffect(Unit) {
+                try { quarantineCount = TPollApp.instance.database.quarantineDao().count() } catch (_: Exception) { }
+            }
+
+            if (quarantineCount > 0) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onNavigateToQuarantine() },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = HighRiskColor.copy(alpha = 0.12f)
+                        ) {
+                            Icon(
+                                Icons.Default.Block,
+                                contentDescription = null,
+                                tint = HighRiskColor,
+                                modifier = Modifier.padding(10.dp).size(24.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Quarentena",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "$quarantineCount app(s) removido(s)",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+            }
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary,
-                    modifier = Modifier.size(28.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Permissões dos apps",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Veja quais apps têm acesso a câmera, microfone, localização e mais",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToPermissions() },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(10.dp).size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Permissões",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Apps com acesso a câmera, localização e mais",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            lineHeight = 16.sp
+                        )
+                    }
                 }
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-            }
-        }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            )
-        ) {
-            val tip = remember { com.tpoll.scanner.DailyTips.getRandomTip(context) }
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onNavigateToHealth() },
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
+                        ) {
+                            Icon(
+                                Icons.Default.Favorite,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                modifier = Modifier.padding(10.dp).size(24.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Saúde",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Bateria, armazenamento, sensores e mais",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                val tip = remember { com.tpoll.scanner.DailyTips.getRandomTip(context) }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MediumRiskColor.copy(alpha = 0.12f)
+                    ) {
+                        Icon(
+                            Icons.Default.Lightbulb,
+                            contentDescription = null,
+                            tint = MediumRiskColor,
+                            modifier = Modifier.padding(10.dp).size(24.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = tip.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = tip.text,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+            }
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    Icons.Default.Lightbulb,
-                    contentDescription = null,
-                    tint = MediumRiskColor,
-                    modifier = Modifier.size(28.dp)
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Apps,
+                    label = "Analisados",
+                    value = lastTotal.toString(),
+                    color = MaterialTheme.colorScheme.primary
                 )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = tip.title,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = tip.text,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Icon(
-                    Icons.Default.AutoAwesome,
-                    contentDescription = "Dica do dia",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                    modifier = Modifier.size(20.dp)
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Warning,
+                    label = "Alto Risco",
+                    value = lastHigh.toString(),
+                    color = HighRiskColor
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Error,
+                    label = "Médio Risco",
+                    value = lastMedium.toString(),
+                    color = MediumRiskColor
                 )
             }
-        }
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Apps,
-                label = "Analisados",
-                value = lastTotal.toString(),
-                color = MaterialTheme.colorScheme.primary
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Warning,
-                label = "Alto Risco",
-                value = lastHigh.toString(),
-                color = HighRiskColor
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Error,
-                label = "Médio Risco",
-                value = lastMedium.toString(),
-                color = MediumRiskColor
-            )
-        }
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onNavigateToHealth() },
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.4f)
-            )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary,
-                    modifier = Modifier.size(28.dp)
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Saúde do dispositivo",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Toque para analisar bateria, armazenamento, sensores e mais",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Icon(
-                    Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                )
-            }
-        }
-
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
                         Text(
                             text = "Último scan",
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = if (lastScanTime > 0) {
@@ -424,120 +445,113 @@ fun DashboardScreen(
                                 ).format(java.util.Date(lastScanTime))
                             } else "Nunca",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                     }
-                    if (lastRemoved > 0) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text("$lastRemoved removidos") },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (lastRemoved > 0) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = LowRiskColor.copy(alpha = 0.12f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = LowRiskColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "$lastRemoved removidos",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = LowRiskColor
+                                    )
+                                }
+                            }
+                        }
+                        Switch(
+                            checked = autoScanEnabled,
+                            onCheckedChange = { enabled ->
+                                autoScanEnabled = enabled
+                                settingsPrefs.edit().putBoolean("auto_scan_enabled", enabled).apply()
+                                if (enabled) {
+                                    com.tpoll.scanner.BootReceiver.schedulePeriodicScan(context)
+                                } else {
+                                    com.tpoll.scanner.BootReceiver.cancelPeriodicScan(context)
+                                }
                             }
                         )
                     }
                 }
             }
-        }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Scan automático",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = "A cada ${settingsPrefs.getInt("scan_interval_hours", 6)}h",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                }
-                Switch(
-                    checked = autoScanEnabled,
-                    onCheckedChange = { enabled ->
-                        autoScanEnabled = enabled
-                        settingsPrefs.edit().putBoolean("auto_scan_enabled", enabled).apply()
-                        if (enabled) {
-                            com.tpoll.scanner.BootReceiver.schedulePeriodicScan(context)
-                        } else {
-                            com.tpoll.scanner.BootReceiver.cancelPeriodicScan(context)
-                        }
-                    }
-                )
-            }
-        }
+            Spacer(modifier = Modifier.height(4.dp))
 
-        Spacer(modifier = Modifier.weight(1f))
-
-        Button(
-            onClick = {
-                ScanService.startScan(context)
-                isScanning = true
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            enabled = !isScanning,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isScanning)
-                    MaterialTheme.colorScheme.surfaceVariant
-                else
-                    MaterialTheme.colorScheme.primary
-            )
-        ) {
-            Icon(
-                imageVector = if (isScanning) Icons.Default.Sync else Icons.Default.Security,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isScanning) "Escaneando..." else "Iniciar varredura",
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        if (shieldActive) {
-            OutlinedButton(
+            Button(
                 onClick = {
-                    isShieldScanning = true
-                    val intent = Intent(context, ShieldService::class.java).apply {
-                        action = ShieldService.ACTION_SCAN_NOW
-                    }
-                    context.startService(intent)
-                    scope.launch {
-                        kotlinx.coroutines.delay(5000)
-                        isShieldScanning = false
-                    }
+                    ScanService.startScan(context)
+                    isScanning = true
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                enabled = !isShieldScanning
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                enabled = !isScanning,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                )
             ) {
                 Icon(
-                    imageVector = if (isShieldScanning) Icons.Default.Sync else Icons.Default.VerifiedUser,
+                    imageVector = if (isScanning) Icons.Default.Sync else Icons.Default.Security,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isShieldScanning) "Escaneando ameaças..." else "Escanear ameaças (Shield)",
-                    fontSize = 14.sp
+                    text = if (isScanning) "Escaneando..." else "Iniciar varredura",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
+
+            if (shieldActive) {
+                OutlinedButton(
+                    onClick = {
+                        isShieldScanning = true
+                        val intent = Intent(context, ShieldService::class.java).apply {
+                            action = ShieldService.ACTION_SCAN_NOW
+                        }
+                        context.startService(intent)
+                        scope.launch {
+                            kotlinx.coroutines.delay(5000)
+                            isShieldScanning = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    enabled = !isShieldScanning,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isShieldScanning) Icons.Default.Sync else Icons.Default.VerifiedUser,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isShieldScanning) "Escaneando ameaças..." else "Escanear ameaças (Shield)",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
@@ -552,34 +566,35 @@ private fun StatCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
-        ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(2.dp))
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = color.copy(alpha = 0.1f)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.padding(8.dp).size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = color
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = color.copy(alpha = 0.8f)
+                color = color.copy(alpha = 0.7f)
             )
         }
     }
