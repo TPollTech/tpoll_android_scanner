@@ -19,6 +19,22 @@ adb shell pm uninstall --user 0 nome.do.pacote
 - Permite forçar parada do app selecionado.
 - Exporta relatório em CSV, JSON ou TXT.
 
+## Login com Google
+
+A branch `feature/google-login` já deixa o app preparado para login com Google usando Firebase Authentication + FirebaseUI.
+
+Para ativar de verdade, falta apenas criar o projeto no Firebase, ativar o provedor Google e colocar o arquivo real:
+
+```txt
+android_app/app/google-services.json
+```
+
+Veja o passo a passo completo em:
+
+```txt
+android_app/FIREBASE_LOGIN_SETUP.md
+```
+
 ## Como usar no Windows
 
 1. Instale Python 3.
@@ -53,4 +69,3 @@ O arquivo `rules.json` permite ajustar:
 - Instaladores considerados confiáveis.
 - Permissões que aumentam a pontuação.
 - App-ops que aumentam a pontuação.
-
