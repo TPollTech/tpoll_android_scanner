@@ -154,6 +154,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndStartScan() {
+        if (!firebaseReady || currentUser.value == null) return
+
         val prefs = getSharedPreferences("scan_settings", MODE_PRIVATE)
         val autoScanEnabled = prefs.getBoolean("auto_scan_enabled", true)
 
