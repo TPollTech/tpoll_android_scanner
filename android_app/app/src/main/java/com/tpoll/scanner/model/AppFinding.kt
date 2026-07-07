@@ -1,3 +1,7 @@
+﻿// Copyright (c) 2025 TPoll Tech. Todos os direitos reservados.
+// Este código é propriedade exclusiva da TPoll Tech.
+// É proibida a cópia, distribuição, modificação ou uso comercial
+// sem autorização expressa por escrito do titular dos direitos autorais.
 package com.tpoll.scanner.model
 
 import androidx.room.Entity
