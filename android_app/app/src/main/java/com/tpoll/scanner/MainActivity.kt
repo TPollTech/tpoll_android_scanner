@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -45,6 +46,7 @@ import com.tpoll.scanner.ui.theme.TPollScannerTheme
 class MainActivity : ComponentActivity() {
 
     private val currentUser = mutableStateOf<FirebaseUser?>(null)
+    private val loginErrorMessage = mutableStateOf<String?>(null)
     private var firebaseReady = false
     private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
 
@@ -63,13 +65,7 @@ class MainActivity : ComponentActivity() {
         googleSignInLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
         ) { result ->
-            if (firebaseReady) {
-                currentUser.value = FirebaseAuth.getInstance().currentUser
-            }
-
-            if (result.resultCode == Activity.RESULT_OK) {
-                checkAndStartScan()
-            }
+            handleGoogleLoginResult(result.resultCode, result.data)
         }
 
         firebaseReady = hasFirebaseConfig()
@@ -89,6 +85,7 @@ class MainActivity : ComponentActivity() {
                 when {
                     !firebaseReady -> FirebaseSetupScreen()
                     currentUser.value == null -> LoginScreen(
+                        errorMessage = loginErrorMessage.value,
                         onGoogleLogin = { openGoogleLogin() }
                     )
                     else -> MainScreen(
@@ -96,6 +93,18 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!firebaseReady) return
+
+        val user = FirebaseAuth.getInstance().currentUser
+        if (user != null) {
+            currentUser.value = user
+            loginErrorMessage.value = null
+            checkAndStartScan()
         }
     }
 
@@ -108,18 +117,58 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun openGoogleLogin() {
+        if (!firebaseReady) {
+            loginErrorMessage.value = "Firebase ainda não está configurado. Confira se o google-services.json está em android_app/app/."
+            return
+        }
+
+        loginErrorMessage.value = null
+
+        try {
+            val providers = arrayListOf(
+                AuthUI.IdpConfig.GoogleBuilder().build()
+            )
+
+            val signInIntent = AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .build()
+
+            googleSignInLauncher.launch(signInIntent)
+        } catch (e: Exception) {
+            loginErrorMessage.value = "Não foi possível abrir o login Google: ${e.localizedMessage ?: e.javaClass.simpleName}"
+        }
+    }
+
+    private fun handleGoogleLoginResult(resultCode: Int, data: Intent?) {
         if (!firebaseReady) return
 
-        val providers = arrayListOf(
-            AuthUI.IdpConfig.GoogleBuilder().build()
-        )
+        val response = IdpResponse.fromResultIntent(data)
+        val user = FirebaseAuth.getInstance().currentUser
+        currentUser.value = user
 
-        val signInIntent = AuthUI.getInstance()
-            .createSignInIntentBuilder()
-            .setAvailableProviders(providers)
-            .build()
+        if (resultCode == Activity.RESULT_OK && user != null) {
+            loginErrorMessage.value = null
+            checkAndStartScan()
+            return
+        }
 
-        googleSignInLauncher.launch(signInIntent)
+        loginErrorMessage.value = buildLoginErrorMessage(response)
+    }
+
+    private fun buildLoginErrorMessage(response: IdpResponse?): String {
+        val error = response?.error
+
+        if (response == null && error == null) {
+            return "Login cancelado ou interrompido. Tente novamente. Se fechar de novo, confira o SHA-1/SHA-256 no Firebase."
+        }
+
+        if (error == null) {
+            return "Login não concluído. Tente novamente."
+        }
+
+        val message = error.localizedMessage ?: error.message ?: "Erro desconhecido"
+        return "Erro no login Google: $message\n\nConfira se o provedor Google está ativo no Firebase e se o SHA-1/SHA-256 deste APK foi cadastrado. Código: ${error.errorCode}"
     }
 
     private fun signOut() {
@@ -132,6 +181,7 @@ class MainActivity : ComponentActivity() {
             .signOut(this)
             .addOnCompleteListener {
                 currentUser.value = null
+                loginErrorMessage.value = null
             }
     }
 
@@ -174,6 +224,7 @@ enum class Screen(val route: String, val label: String, val icon: ImageVector) {
 
 @Composable
 fun LoginScreen(
+    errorMessage: String?,
     onGoogleLogin: () -> Unit
 ) {
     Surface(
@@ -223,6 +274,24 @@ fun LoginScreen(
                         Icon(Icons.Default.Login, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Entrar com Google")
+                    }
+
+                    if (!errorMessage.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = errorMessage,
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
