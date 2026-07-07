@@ -1,8 +1,8 @@
 # Configurar login com Google no TPoll Scanner
 
-Esta branch já deixa o app preparado para login com Google usando Firebase Authentication + FirebaseUI.
+O app está preparado para login com Google usando Firebase Authentication + FirebaseUI.
 
-A parte que ainda precisa ser feita manualmente é criar o projeto no Firebase e adicionar o arquivo real `google-services.json`.
+A parte que precisa ser feita manualmente é criar o projeto no Firebase e adicionar o arquivo real `google-services.json`.
 
 ## 1. Criar projeto no Firebase
 
@@ -49,6 +49,56 @@ Para release, use seu processo atual de assinatura.
 - Com `google-services.json`: o app mostra a tela **Entrar com Google**.
 - Após login: libera o `MainScreen` normal do TPoll Scanner.
 - No topo do app aparece um botão de sair.
+- Se o login falhar, o app mostra o erro na própria tela de login.
+
+## 6. Se clicar em Entrar com Google e voltar sem logar
+
+Quase sempre é um destes pontos:
+
+1. O provedor **Google** não foi ativado no Firebase Authentication.
+2. O package name no Firebase não é exatamente `com.tpoll.scanner`.
+3. O SHA-1 do APK debug não foi cadastrado no Firebase.
+4. O SHA-256 do APK debug não foi cadastrado no Firebase.
+5. O `google-services.json` foi baixado antes de cadastrar o SHA e precisa ser baixado novamente.
+
+Para pegar o SHA-1/SHA-256 do debug:
+
+```bat
+cd android_app
+gradlew signingReport
+```
+
+Procure a seção:
+
+```txt
+Variant: debug
+```
+
+Copie os valores:
+
+```txt
+SHA1: ...
+SHA-256: ...
+```
+
+Depois vá no Firebase:
+
+```txt
+Configurações do projeto > Seus apps > Android > Impressões digitais SHA
+```
+
+Adicione o SHA-1 e o SHA-256, salve, baixe novamente o `google-services.json` e substitua o arquivo em:
+
+```txt
+android_app/app/google-services.json
+```
+
+Depois rode de novo:
+
+```bat
+cd android_app
+gradlew clean assembleDebug
+```
 
 ## Arquivos alterados
 
