@@ -6,6 +6,9 @@ android_app/.idea/
 android_app/local.properties
 android_app/gradle/wrapper/gradle-wrapper.jar
 
+# Firebase / local secrets
+android_app/app/google-services.json
+
 # OS files
 .DS_Store
 Thumbs.db
