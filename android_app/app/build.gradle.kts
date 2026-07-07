@@ -91,6 +91,16 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.firebaseui:firebase-ui-auth:8.0.2")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+// O plugin do Google Services só é aplicado quando o arquivo real do Firebase existir.
+// Assim o projeto continua abrindo/compilando antes de você adicionar o google-services.json.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
