@@ -25,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -132,6 +133,10 @@ class MainActivity : ComponentActivity() {
             val signInIntent = AuthUI.getInstance()
                 .createSignInIntentBuilder()
                 .setAvailableProviders(providers)
+                .setTosAndPrivacyPolicyUrls(
+                    "https://tpolltech.github.io/tpoll_android_scanner/privacy_policy.html",
+                    "https://tpolltech.github.io/tpoll_android_scanner/privacy_policy.html"
+                )
                 .build()
 
             googleSignInLauncher.launch(signInIntent)
@@ -271,7 +276,11 @@ fun LoginScreen(
                         onClick = onGoogleLogin,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(Icons.Default.Login, contentDescription = null)
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_google),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Entrar com Google")
                     }
