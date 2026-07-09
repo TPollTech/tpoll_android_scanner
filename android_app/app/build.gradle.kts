@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.tpoll.scanner"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.tpoll.scanner"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 10
         versionName = "1.5.0"
 
@@ -27,6 +27,9 @@ android {
             storePassword = project.properties["RELEASE_STORE_PASSWORD"] as String
             keyAlias = project.properties["RELEASE_KEY_ALIAS"] as String
             keyPassword = project.properties["RELEASE_KEY_PASSWORD"] as String
+            v1SigningEnabled = true
+            v2SigningEnabled = true
+            v3SigningEnabled = true
         }
     }
 

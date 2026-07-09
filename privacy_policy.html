@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Política de Privacidade - TPoll Scanner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a1a; color: #e0e0e0; line-height: 1.8; }
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+        h1 { font-size: 2rem; background: linear-gradient(135deg, #00f0ff, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem; }
+        h2 { font-size: 1.3rem; color: #a855f7; margin: 2rem 0 0.5rem; }
+        p, li { color: #b0b0c0; margin-bottom: 0.8rem; }
+        ul { padding-left: 1.5rem; }
+        .date { color: #666; font-size: 0.9rem; margin-bottom: 2rem; }
+        a { color: #00f0ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .back { display: inline-block; margin-bottom: 2rem; color: #a855f7; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back">&larr; Voltar ao site</a>
+        <h1>Política de Privacidade</h1>
+        <p class="date">Última atualização: 09 de julho de 2026</p>
+
+        <h2>1. Informações Coletadas</h2>
+        <p>O TPoll Scanner acessa as seguintes informações do seu dispositivo:</p>
+        <ul>
+            <li><strong>Lista de apps instalados:</strong> Necessária para escanear e identificar aplicativos potencialmente perigosos.</li>
+            <li><strong>Informações de apps:</strong> Nome, pacote, permissões concedidas, data de instalação e assinatura digital. Usadas para análise de risco.</li>
+            <li><strong>Informações da conta Google:</strong> Apenas nome, email e foto de perfil. Usadas exclusivamente para autenticação (login).</li>
+        </ul>
+
+        <h2>2. Uso das Informações</h2>
+        <p>Todas as informações coletadas são processadas localmente no seu dispositivo. Nenhum dado é enviado para servidores externos, exceto:</p>
+        <ul>
+            <li>Dados de autenticação Google (processados pelo Firebase Authentication da Google).</li>
+        </ul>
+
+        <h2>3. Armazenamento</h2>
+        <p>O TPoll Scanner armazena dados localmente no seu dispositivo usando:</p>
+        <ul>
+            <li><strong>Room Database:</strong> Histórico de escaneamentos e resultados.</li>
+            <li><strong>DataStore:</strong> Preferências e configurações do app.</li>
+            <li><strong>SharedPreferences:</strong> Controle de atualizações.</li>
+        </ul>
+        <p>Nenhum dado é transmitido para servidores da TPoll Tech.</p>
+
+        <h2>4. Compartilhamento</h2>
+        <p>O TPoll Scanner <strong>não</strong> compartilha, vende ou distribui quaisquer dados coletados com terceiros.</p>
+
+        <h2>5. Permissões</h2>
+        <p>O app solicita as seguintes permissões do Android:</p>
+        <ul>
+            <li><strong>QUERY_ALL_PACKAGES:</strong> Para listar e analisar todos os apps instalados.</li>
+            <li><strong>REQUEST_DELETE_PACKAGES:</strong> Para permitir a remoção de apps perigosos (mediante confirmação do usuário).</li>
+            <li><strong>RECEIVE_BOOT_COMPLETED:</strong> Para retomar monitoramento após reiniciar o dispositivo.</li>
+            <li><strong>POST_NOTIFICATIONS:</strong> Para enviar alertas sobre ameaças detectadas.</li>
+            <li><strong>INTERNET:</strong> Para verificar atualizações do app e autenticação Google.</li>
+            <li><strong>BLUETOOTH (deprecated):</strong> Para verificar dispositivos Bluetooth conectados como parte da análise de saúde do dispositivo.</li>
+        </ul>
+
+        <h2>6. Segurança</h2>
+        <p>O app utiliza criptografia padrão de mercado para proteger dados locais. O APK é assinado digitalmente (v1/v2/v3) para garantir integridade.</p>
+
+        <h2>7. Crianças</h2>
+        <p>O TPoll Scanner não é direcionado a crianças menores de 13 anos e não coleta dados de crianças.</p>
+
+        <h2>8. Alterações</h2>
+        <p>Esta política pode ser atualizada a qualquer momento. Recomendamos verificar periodicamente.</p>
+
+        <h2>9. Contato</h2>
+        <p>Em caso de dúvidas, entre em contato pelo email: <a href="mailto:tpolltech@users.noreply.github.com">tpolltech@users.noreply.github.com</a></p>
+
+        <h2>10. Direitos</h2>
+        <p>Você pode solicitar exclusão de todos os seus dados armazenados localmente a qualquer momento, desinstalando o app ou limpando os dados nas configurações do Android.</p>
+    </div>
+</body>
+</html>
