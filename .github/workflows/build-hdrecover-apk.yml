@@ -6,6 +6,11 @@ on:
     paths:
       - "hdrecover_android/**"
       - ".github/workflows/build-hdrecover-apk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "hdrecover_android/**"
+      - ".github/workflows/build-hdrecover-apk.yml"
   workflow_dispatch:
 
 permissions:
@@ -50,6 +55,7 @@ jobs:
             HdRecover-Mobile-v0.1.0.sha256
 
       - name: Publicar APK na área de releases
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: hdrecover-android-v0.1.0
