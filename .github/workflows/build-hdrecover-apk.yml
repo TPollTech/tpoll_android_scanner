@@ -1,0 +1,66 @@
+name: Build HdRecover Mobile APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "hdrecover_android/**"
+      - ".github/workflows/build-hdrecover-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar SDK 34
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Compilar APK de teste
+        run: |
+          chmod +x android_app/gradlew
+          android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace
+
+      - name: Preparar APK
+        run: |
+          cp hdrecover_android/app/build/outputs/apk/debug/app-debug.apk HdRecover-Mobile-v0.1.0.apk
+          sha256sum HdRecover-Mobile-v0.1.0.apk > HdRecover-Mobile-v0.1.0.sha256
+
+      - name: Publicar artefato do workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: HdRecover-Mobile-v0.1.0
+          path: |
+            HdRecover-Mobile-v0.1.0.apk
+            HdRecover-Mobile-v0.1.0.sha256
+
+      - name: Publicar APK na área de releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: hdrecover-android-v0.1.0
+          name: HdRecover Mobile v0.1.0
+          body: |
+            Primeira versão Android dedicada do HdRecover.
+
+            Conecte um HD, SSD ou pendrive por USB OTG e selecione uma pasta de destino diferente do dispositivo de origem.
+          prerelease: true
+          files: |
+            HdRecover-Mobile-v0.1.0.apk
+            HdRecover-Mobile-v0.1.0.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
