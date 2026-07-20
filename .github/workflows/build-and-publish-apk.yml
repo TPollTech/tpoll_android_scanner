@@ -1,11 +1,14 @@
 name: Build and publish APK
 
 concurrency:
-  group: build-apk-main
+  group: build-apk-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
@@ -74,7 +77,7 @@ jobs:
           ./gradlew clean assembleRelease 2>&1 | tee ../build.log
 
       - name: Commit build failure report
-        if: steps.build.outcome == 'failure'
+        if: steps.build.outcome == 'failure' && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -86,6 +89,13 @@ jobs:
           git add -f BUILD_FAILURE.txt
           git commit -m "Registrar erro do build APK" || true
           git push || true
+
+      - name: Upload build log on failure
+        if: steps.build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TPollScanner-build-log
+          path: build.log
 
       - name: Stop after build failure
         if: steps.build.outcome == 'failure'
@@ -106,7 +116,7 @@ jobs:
           path: TPollScanner-release.apk
 
       - name: Commit APK to main for GitHub Pages download
-        if: steps.build.outcome == 'success'
+        if: steps.build.outcome == 'success' && github.event_name == 'push'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
