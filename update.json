@@ -1,7 +1,7 @@
 {
-  "version_code": 11,
-  "version_name": "1.6.0",
-  "changelog": "Novidades da v1.6.0:\n\n- Nova aba Limpeza Inteligente\n- Base inicial para encontrar arquivos grandes\n- Detecção de duplicados prováveis\n- Detecção de mídias do WhatsApp\n- Detecção de prints, downloads antigos e APKs baixados\n- Login Google agora é opcional com Continuar sem conta\n- Roadmap do TPoll Scanner como Antivírus + Limpeza + Privacidade\n\nObservação: esta versão lista achados para revisão segura. A exclusão real com confirmação entra em etapa posterior.",
+  "version_code": 12,
+  "version_name": "1.7.0",
+  "changelog": "Novidades da v1.7.0:\n\n- Duplicados confirmados por hash SHA-256\n- Fotos parecidas para revisão\n- WhatsApp Cleaner dividido por fotos, vídeos, áudios, documentos e APKs\n- Lixeira segura com confirmação antes de limpar\n- Nova aba Detector de Golpes\n- Análise de mensagens suspeitas por regras locais\n- Nova aba Premium com proposta comercial e benefícios\n- Navegação expandida para Antivírus + Limpeza + Golpes + Premium\n\nObservação: o detector de golpes é uma orientação por sinais comuns e não substitui confirmação em canais oficiais.",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
   "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
   "min_version_code": 1
