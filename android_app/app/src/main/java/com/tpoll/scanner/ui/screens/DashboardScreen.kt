@@ -1,37 +1,84 @@
-﻿// Copyright (c) 2025 TPoll Tech. Todos os direitos reservados.
-// Este código é propriedade exclusiva da TPoll Tech.
-// É proibida a cópia, distribuição, modificação ou uso comercial
-// sem autorização expressa por escrito do titular dos direitos autorais.
+// Copyright (c) 2026 TPollTech. Todos os direitos reservados.
 package com.tpoll.scanner.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.animation.*
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.tpoll.scanner.BootReceiver
+import com.tpoll.scanner.DailyTips
 import com.tpoll.scanner.ScanService
 import com.tpoll.scanner.TPollApp
 import com.tpoll.scanner.protection.ShieldService
-import com.tpoll.scanner.ui.theme.*
+import com.tpoll.scanner.ui.theme.HighRiskColor
+import com.tpoll.scanner.ui.theme.LowRiskColor
+import com.tpoll.scanner.ui.theme.MediumRiskColor
+import com.tpoll.scanner.ui.theme.ShieldDangerColor
+import com.tpoll.scanner.ui.theme.ShieldWarningColor
+import com.tpoll.scanner.ui.theme.StatusActive
+import com.tpoll.scanner.ui.theme.StatusInactive
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun DashboardScreen(
@@ -44,6 +91,8 @@ fun DashboardScreen(
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("scan_results", Context.MODE_PRIVATE)
     val settingsPrefs = context.getSharedPreferences("scan_settings", Context.MODE_PRIVATE)
+    val protectionPrefs = context.getSharedPreferences("protection_status", Context.MODE_PRIVATE)
+    val scope = rememberCoroutineScope()
 
     var isScanning by remember { mutableStateOf(ScanService.isScanRunning()) }
     var lastScanTime by remember { mutableStateOf(prefs.getLong("last_scan_time", 0L)) }
@@ -52,18 +101,16 @@ fun DashboardScreen(
     var lastMedium by remember { mutableStateOf(prefs.getInt("last_scan_medium", 0)) }
     var lastRemoved by remember { mutableStateOf(prefs.getInt("last_scan_removed", 0)) }
     var autoScanEnabled by remember { mutableStateOf(settingsPrefs.getBoolean("auto_scan_enabled", true)) }
-
-    val protectionPrefs = context.getSharedPreferences("protection_status", Context.MODE_PRIVATE)
     var shieldActive by remember { mutableStateOf(ShieldService.isRunning()) }
     var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("threat_count", 0)) }
     var malwareCount by remember { mutableStateOf(protectionPrefs.getInt("malware_count", 0)) }
-
     var isShieldScanning by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
+    var quarantineCount by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(shieldActive) {
+    LaunchedEffect(Unit) {
+        quarantineCount = runCatching { TPollApp.instance.database.quarantineDao().count() }.getOrDefault(0)
         while (true) {
-            kotlinx.coroutines.delay(5000)
+            delay(5_000)
             shieldActive = ShieldService.isRunning()
             shieldThreats = protectionPrefs.getInt("threat_count", 0)
             malwareCount = protectionPrefs.getInt("malware_count", 0)
@@ -71,433 +118,94 @@ fun DashboardScreen(
     }
 
     LaunchedEffect(isScanning) {
-        if (isScanning) {
-            while (isScanning) {
-                kotlinx.coroutines.delay(1000)
-                isScanning = ScanService.isScanRunning()
-                lastScanTime = prefs.getLong("last_scan_time", 0L)
-                lastTotal = prefs.getInt("last_scan_total", 0)
-                lastHigh = prefs.getInt("last_scan_high", 0)
-                lastMedium = prefs.getInt("last_scan_medium", 0)
-                lastRemoved = prefs.getInt("last_scan_removed", 0)
-            }
+        while (isScanning) {
+            delay(1_000)
+            isScanning = ScanService.isScanRunning()
+            lastScanTime = prefs.getLong("last_scan_time", 0L)
+            lastTotal = prefs.getInt("last_scan_total", 0)
+            lastHigh = prefs.getInt("last_scan_high", 0)
+            lastMedium = prefs.getInt("last_scan_medium", 0)
+            lastRemoved = prefs.getInt("last_scan_removed", 0)
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+    val statusColor = when {
+        !shieldActive -> StatusInactive
+        malwareCount > 0 -> ShieldDangerColor
+        shieldThreats > 0 || lastHigh > 0 -> ShieldWarningColor
+        else -> StatusActive
+    }
+    val statusTitle = when {
+        !shieldActive -> "Proteção desativada"
+        malwareCount > 0 -> "Ameaças encontradas"
+        shieldThreats > 0 || lastHigh > 0 -> "Revisão recomendada"
+        else -> "Celular protegido"
+    }
+    val statusDescription = when {
+        !shieldActive -> "Ative a proteção e faça uma análise completa."
+        malwareCount > 0 -> "$malwareCount ameaça(s) precisam de atenção."
+        shieldThreats > 0 -> "$shieldThreats app(s) suspeito(s) encontrados."
+        lastScanTime == 0L -> "Faça a primeira análise para conferir seus aplicativos."
+        else -> "Nenhuma ameaça importante encontrada na última análise."
+    }
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f)
-                        )
-                    )
-                )
-                .padding(horizontal = 24.dp, vertical = 28.dp)
-        ) {
-            Row(
+        item {
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column {
-                    Text(
-                        text = "TPoll Scanner",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Proteção automática contra apps maliciosos",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        modifier = Modifier.padding(12.dp).size(36.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = isScanning,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
-        ) {
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                ),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.12f))
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.5.dp,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                    Text(
-                        text = "Escaneando apps...",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                }
-            }
-        }
-
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = shieldThreats > 0) { onNavigateToHistory() },
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = when {
-                            !shieldActive -> StatusInactive.copy(alpha = 0.15f)
-                            malwareCount > 0 -> ShieldDangerColor.copy(alpha = 0.15f)
-                            shieldThreats > 0 -> ShieldWarningColor.copy(alpha = 0.15f)
-                            else -> StatusActive.copy(alpha = 0.15f)
-                        }
-                    ) {
+                    Surface(shape = RoundedCornerShape(16.dp), color = statusColor.copy(alpha = 0.16f)) {
                         Icon(
-                            imageVector = Icons.Default.Shield,
+                            imageVector = if (malwareCount > 0) Icons.Default.Warning else Icons.Default.Shield,
                             contentDescription = null,
-                            tint = if (!shieldActive) StatusInactive
-                            else if (malwareCount > 0) ShieldDangerColor
-                            else if (shieldThreats > 0) ShieldWarningColor
-                            else StatusActive,
-                            modifier = Modifier.padding(10.dp).size(24.dp)
+                            tint = statusColor,
+                            modifier = Modifier.padding(11.dp).size(30.dp)
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (shieldActive) "Proteção ativa" else "Proteção desativada",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = when {
-                                malwareCount > 0 -> "$malwareCount malware(s) detectado(s)"
-                                shieldThreats > 0 -> "$shieldThreats app(s) suspeito(s)"
-                                else -> "Nenhuma ameaça encontrada"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                    if (shieldThreats > 0) {
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
+                        Text(statusTitle, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(statusDescription, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
+        }
 
-            var quarantineCount by remember { mutableIntStateOf(0) }
-            LaunchedEffect(Unit) {
-                try { quarantineCount = TPollApp.instance.database.quarantineDao().count() } catch (_: Exception) { }
-            }
-
-            if (quarantineCount > 0) {
+        item {
+            AnimatedVisibility(
+                visible = isScanning,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onNavigateToQuarantine() },
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = HighRiskColor.copy(alpha = 0.12f)
-                        ) {
-                            Icon(
-                                Icons.Default.Block,
-                                contentDescription = null,
-                                tint = HighRiskColor,
-                                modifier = Modifier.padding(10.dp).size(24.dp)
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Quarentena",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "$quarantineCount app(s) removido(s)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                        Icon(
-                            Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                        )
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.5.dp)
+                        Text("Analisando aplicativos...", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
+        }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToPermissions() },
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                        ) {
-                            Icon(
-                                Icons.Default.Lock,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(10.dp).size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Permissões",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Apps com acesso a câmera, localização e mais",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { onNavigateToHealth() },
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f)
-                        ) {
-                            Icon(
-                                Icons.Default.Favorite,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.padding(10.dp).size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Saúde",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Bateria, armazenamento, sensores e mais",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                            lineHeight = 16.sp
-                        )
-                    }
-                }
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                val tip = remember { com.tpoll.scanner.DailyTips.getRandomTip(context) }
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MediumRiskColor.copy(alpha = 0.12f)
-                    ) {
-                        Icon(
-                            Icons.Default.Lightbulb,
-                            contentDescription = null,
-                            tint = MediumRiskColor,
-                            modifier = Modifier.padding(10.dp).size(24.dp)
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = tip.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = tip.text,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Apps,
-                    label = "Analisados",
-                    value = lastTotal.toString(),
-                    color = MaterialTheme.colorScheme.primary
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Warning,
-                    label = "Alto Risco",
-                    value = lastHigh.toString(),
-                    color = HighRiskColor
-                )
-                StatCard(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Default.Error,
-                    label = "Médio Risco",
-                    value = lastMedium.toString(),
-                    color = MediumRiskColor
-                )
-            }
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Último scan",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (lastScanTime > 0) {
-                                java.text.SimpleDateFormat(
-                                    "dd/MM/yyyy HH:mm",
-                                    java.util.Locale.getDefault()
-                                ).format(java.util.Date(lastScanTime))
-                            } else "Nunca",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (lastRemoved > 0) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = LowRiskColor.copy(alpha = 0.12f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = LowRiskColor,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = "$lastRemoved removidos",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = LowRiskColor
-                                    )
-                                }
-                            }
-                        }
-                        Switch(
-                            checked = autoScanEnabled,
-                            onCheckedChange = { enabled ->
-                                autoScanEnabled = enabled
-                                settingsPrefs.edit().putBoolean("auto_scan_enabled", enabled).apply()
-                                if (enabled) {
-                                    com.tpoll.scanner.BootReceiver.schedulePeriodicScan(context)
-                                } else {
-                                    com.tpoll.scanner.BootReceiver.cancelPeriodicScan(context)
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
+        item {
             Button(
                 onClick = {
                     ScanService.startScan(context)
@@ -506,100 +214,204 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 enabled = !isScanning,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Icon(
-                    imageVector = if (isScanning) Icons.Default.Sync else Icons.Default.Security,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(if (isScanning) Icons.Default.Sync else Icons.Default.Security, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isScanning) "Escaneando..." else "Iniciar varredura",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                Text(if (isScanning) "Analisando..." else "Analisar agora", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                QuickActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Lock,
+                    title = "Privacidade",
+                    subtitle = "Revisar permissões",
+                    color = MaterialTheme.colorScheme.primary,
+                    onClick = onNavigateToPermissions
+                )
+                QuickActionCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Default.Favorite,
+                    title = "Saúde",
+                    subtitle = "Bateria e espaço",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    onClick = onNavigateToHealth
                 )
             }
+        }
 
-            if (shieldActive) {
-                OutlinedButton(
-                    onClick = {
-                        isShieldScanning = true
-                        val intent = Intent(context, ShieldService::class.java).apply {
-                            action = ShieldService.ACTION_SCAN_NOW
-                        }
-                        context.startService(intent)
-                        scope.launch {
-                            kotlinx.coroutines.delay(5000)
-                            isShieldScanning = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    enabled = !isShieldScanning,
-                    shape = RoundedCornerShape(16.dp)
+        item {
+            Text("Resumo", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        }
+
+        item {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CompactStat(Modifier.weight(1f), Icons.Default.Apps, "Analisados", lastTotal.toString(), MaterialTheme.colorScheme.primary)
+                CompactStat(Modifier.weight(1f), Icons.Default.Warning, "Alto risco", lastHigh.toString(), HighRiskColor)
+                CompactStat(Modifier.weight(1f), Icons.Default.Error, "Atenção", lastMedium.toString(), MediumRiskColor)
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth().clickable(enabled = shieldThreats > 0) { onNavigateToHistory() },
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = if (isShieldScanning) Icons.Default.Sync else Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isShieldScanning) "Escaneando ameaças..." else "Escanear ameaças (Shield)",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
+                    Icon(Icons.Default.VerifiedUser, contentDescription = null, tint = statusColor, modifier = Modifier.size(26.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(if (shieldActive) "Proteção em tempo real" else "Proteção em pausa", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (shieldActive) "Monitoramento de novos aplicativos ativo" else "Ative a proteção nas configurações",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    if (shieldThreats > 0) Icon(Icons.Default.ChevronRight, contentDescription = null)
+                }
+            }
+        }
+
+        if (quarantineCount > 0) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().clickable(onClick = onNavigateToQuarantine),
+                    shape = RoundedCornerShape(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.Block, contentDescription = null, tint = HighRiskColor)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Quarentena", fontWeight = FontWeight.Bold)
+                            Text("$quarantineCount item(ns) isolado(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Análise automática", fontWeight = FontWeight.Bold)
+                        Text(
+                            if (lastScanTime > 0) "Última: ${formatScanDate(lastScanTime)}" else "Nenhuma análise concluída",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (lastRemoved > 0) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("$lastRemoved item(ns) removido(s)", style = MaterialTheme.typography.labelSmall, color = LowRiskColor)
+                        }
+                    }
+                    Switch(
+                        checked = autoScanEnabled,
+                        onCheckedChange = { enabled ->
+                            autoScanEnabled = enabled
+                            settingsPrefs.edit().putBoolean("auto_scan_enabled", enabled).apply()
+                            if (enabled) BootReceiver.schedulePeriodicScan(context) else BootReceiver.cancelPeriodicScan(context)
+                        }
                     )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(8.dp))
+        if (shieldActive) {
+            item {
+                OutlinedButton(
+                    onClick = {
+                        isShieldScanning = true
+                        context.startService(Intent(context, ShieldService::class.java).apply { action = ShieldService.ACTION_SCAN_NOW })
+                        scope.launch {
+                            delay(5_000)
+                            isShieldScanning = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    enabled = !isShieldScanning,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(if (isShieldScanning) Icons.Default.Sync else Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(19.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isShieldScanning) "Verificando..." else "Verificação rápida")
+                }
+            }
+        }
+
+        item {
+            val tip = remember { DailyTips.getRandomTip(context) }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(15.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MediumRiskColor)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(tip.title, fontWeight = FontWeight.Bold)
+                        Text(tip.text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun StatCard(
-    modifier: Modifier = Modifier,
+private fun QuickActionCard(
+    modifier: Modifier,
     icon: ImageVector,
-    label: String,
-    value: String,
-    color: Color
+    title: String,
+    subtitle: String,
+    color: Color,
+    onClick: () -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = RoundedCornerShape(10.dp),
-                color = color.copy(alpha = 0.1f)
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = color,
-                    modifier = Modifier.padding(8.dp).size(20.dp)
-                )
+    Card(modifier = modifier.clickable(onClick = onClick), shape = RoundedCornerShape(18.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(15.dp)) {
+            Surface(shape = RoundedCornerShape(11.dp), color = color.copy(alpha = 0.12f)) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(8.dp).size(22.dp))
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = color.copy(alpha = 0.7f)
-            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+@Composable
+private fun CompactStat(modifier: Modifier, icon: ImageVector, label: String, value: String, color: Color) {
+    Card(modifier = modifier, shape = RoundedCornerShape(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.height(5.dp))
+            Text(value, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = color)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private fun formatScanDate(time: Long): String {
+    return SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(time))
 }
