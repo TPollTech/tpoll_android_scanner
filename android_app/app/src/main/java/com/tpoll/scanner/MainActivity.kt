@@ -36,6 +36,7 @@ import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.tpoll.scanner.ui.screens.CleanerScreen
 import com.tpoll.scanner.ui.screens.DashboardScreen
 import com.tpoll.scanner.ui.screens.HealthScreen
 import com.tpoll.scanner.ui.screens.HistoryScreen
@@ -48,6 +49,7 @@ class MainActivity : ComponentActivity() {
 
     private val currentUser = mutableStateOf<FirebaseUser?>(null)
     private val loginErrorMessage = mutableStateOf<String?>(null)
+    private val loginSkipped = mutableStateOf(false)
     private var firebaseReady = false
     private lateinit var googleSignInLauncher: ActivityResultLauncher<Intent>
 
@@ -70,6 +72,9 @@ class MainActivity : ComponentActivity() {
         }
 
         firebaseReady = hasFirebaseConfig()
+        loginSkipped.value = getSharedPreferences("auth_settings", MODE_PRIVATE)
+            .getBoolean("login_skipped", false)
+
         if (firebaseReady) {
             currentUser.value = FirebaseAuth.getInstance().currentUser
         }
@@ -84,10 +89,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             TPollScannerTheme {
                 when {
-                    !firebaseReady -> FirebaseSetupScreen()
-                    currentUser.value == null -> LoginScreen(
+                    currentUser.value == null && !loginSkipped.value -> LoginScreen(
                         errorMessage = loginErrorMessage.value,
-                        onGoogleLogin = { openGoogleLogin() }
+                        onGoogleLogin = { openGoogleLogin() },
+                        onContinueWithoutLogin = { continueWithoutLogin() }
                     )
                     else -> MainScreen(
                         onSignOut = { signOut() }
@@ -104,6 +109,11 @@ class MainActivity : ComponentActivity() {
         val user = FirebaseAuth.getInstance().currentUser
         if (user != null) {
             currentUser.value = user
+            loginSkipped.value = false
+            getSharedPreferences("auth_settings", MODE_PRIVATE)
+                .edit()
+                .putBoolean("login_skipped", false)
+                .apply()
             loginErrorMessage.value = null
             checkAndStartScan()
         }
@@ -119,7 +129,7 @@ class MainActivity : ComponentActivity() {
 
     private fun openGoogleLogin() {
         if (!firebaseReady) {
-            loginErrorMessage.value = "Firebase ainda não está configurado. Confira se o google-services.json está em android_app/app/."
+            loginErrorMessage.value = "Firebase ainda não está configurado. Você pode continuar sem conta e configurar o Google depois."
             return
         }
 
@@ -145,6 +155,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun continueWithoutLogin() {
+        loginSkipped.value = true
+        loginErrorMessage.value = null
+        getSharedPreferences("auth_settings", MODE_PRIVATE)
+            .edit()
+            .putBoolean("login_skipped", true)
+            .apply()
+        checkAndStartScan()
+    }
+
     private fun handleGoogleLoginResult(resultCode: Int, data: Intent?) {
         if (!firebaseReady) return
 
@@ -153,6 +173,11 @@ class MainActivity : ComponentActivity() {
         currentUser.value = user
 
         if (resultCode == Activity.RESULT_OK && user != null) {
+            loginSkipped.value = false
+            getSharedPreferences("auth_settings", MODE_PRIVATE)
+                .edit()
+                .putBoolean("login_skipped", false)
+                .apply()
             loginErrorMessage.value = null
             checkAndStartScan()
             return
@@ -165,11 +190,11 @@ class MainActivity : ComponentActivity() {
         val error = response?.error
 
         if (response == null && error == null) {
-            return "Login cancelado ou interrompido. Tente novamente. Se fechar de novo, confira o SHA-1/SHA-256 no Firebase."
+            return "Login cancelado ou interrompido. Você pode tentar novamente ou continuar sem conta. Se fechar de novo, confira o SHA-1/SHA-256 no Firebase."
         }
 
         if (error == null) {
-            return "Login não concluído. Tente novamente."
+            return "Login não concluído. Tente novamente ou continue sem conta."
         }
 
         val message = error.localizedMessage ?: error.message ?: "Erro desconhecido"
@@ -177,6 +202,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun signOut() {
+        loginSkipped.value = false
+        getSharedPreferences("auth_settings", MODE_PRIVATE)
+            .edit()
+            .putBoolean("login_skipped", false)
+            .apply()
+
         if (!firebaseReady) {
             currentUser.value = null
             return
@@ -209,7 +240,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkAndStartScan() {
-        if (!firebaseReady || currentUser.value == null) return
+        if (firebaseReady && currentUser.value == null && !loginSkipped.value) return
 
         val prefs = getSharedPreferences("scan_settings", MODE_PRIVATE)
         val autoScanEnabled = prefs.getBoolean("auto_scan_enabled", true)
@@ -221,16 +252,18 @@ class MainActivity : ComponentActivity() {
 }
 
 enum class Screen(val route: String, val label: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Painel", Icons.Default.Home),
+    Dashboard("dashboard", "Início", Icons.Default.Home),
+    Cleaner("cleaner", "Limpeza", Icons.Default.CleaningServices),
     History("history", "Histórico", Icons.Default.History),
     Health("health", "Saúde", Icons.Default.Favorite),
-    Settings("settings", "Configurações", Icons.Default.Settings)
+    Settings("settings", "Ajustes", Icons.Default.Settings)
 }
 
 @Composable
 fun LoginScreen(
     errorMessage: String?,
-    onGoogleLogin: () -> Unit
+    onGoogleLogin: () -> Unit,
+    onContinueWithoutLogin: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -266,7 +299,7 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Entre com sua conta Google para continuar usando o app.",
+                        text = "Antivírus, limpeza e privacidade para Android. Entre com Google para salvar recursos futuros ou teste sem conta.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -283,6 +316,15 @@ fun LoginScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Entrar com Google")
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = onContinueWithoutLogin,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Continuar sem conta")
                     }
 
                     if (!errorMessage.isNullOrBlank()) {
@@ -344,7 +386,7 @@ fun FirebaseSetupScreen() {
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Crie o projeto no Firebase, ative o login Google e coloque o arquivo google-services.json em android_app/app/ para liberar o acesso ao app.",
+                        text = "Crie o projeto no Firebase, ative o login Google e coloque o arquivo google-services.json em android_app/app/ para liberar o login Google.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center
@@ -386,9 +428,10 @@ fun MainScreen(
                         Text(
                             text = when (currentScreen) {
                                 Screen.Dashboard -> "TPoll Scanner"
+                                Screen.Cleaner -> "Limpeza inteligente"
                                 Screen.History -> "Histórico"
                                 Screen.Health -> "Saúde do dispositivo"
-                                Screen.Settings -> "Configurações"
+                                Screen.Settings -> "Ajustes"
                             },
                             fontWeight = FontWeight.Bold
                         )
@@ -457,6 +500,7 @@ fun MainScreen(
                     onNavigateToQuarantine = { showQuarantine = true },
                     onNavigateToPermissions = { showPermissions = true }
                 )
+                Screen.Cleaner -> CleanerScreen()
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()
                 Screen.Settings -> SettingsScreen()
