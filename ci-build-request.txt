@@ -1,1 +1,1 @@
-Build de validação da interface 1.8.0.
+Build de validação e publicação da interface 1.8.0.
