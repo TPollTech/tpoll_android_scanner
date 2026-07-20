@@ -36,6 +36,9 @@ jobs:
       - name: Instalar SDK 34
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Aplicar correção de compatibilidade do Java
+        run: python3 hdrecover_android/ci_patch.py
+
       - name: Compilar APK de teste
         run: |
           chmod +x android_app/gradlew
