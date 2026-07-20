@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       build_ok: ${{ steps.resumo.outputs.build_ok }}
-      error_summary: ${{ steps.resumo.outputs.error_summary }}
+      error_b64: ${{ steps.resumo.outputs.error_b64 }}
 
     steps:
       - name: Checkout
@@ -49,7 +49,10 @@ jobs:
         run: |
           set -o pipefail
           chmod +x android_app/gradlew
-          android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace 2>&1 | tee hdrecover_build.log
+          android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace > hdrecover_build.log 2>&1
+          STATUS=$?
+          cat hdrecover_build.log
+          exit $STATUS
 
       - name: Preparar resumo do resultado
         id: resumo
@@ -62,13 +65,15 @@ jobs:
             echo "build_ok=false" >> "$GITHUB_OUTPUT"
           fi
           {
-            echo 'error_summary<<HDRECOVER_DIAGNOSTICO_FIM'
+            echo '===== TAMANHO DO LOG ====='
+            wc -c hdrecover_build.log || true
             echo '===== ERROS PRINCIPAIS ====='
-            grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal|A problem occurred" hdrecover_build.log | head -n 70 || true
+            grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal|A problem occurred" hdrecover_build.log | head -n 50 || true
             echo '===== FINAL DO LOG ====='
-            tail -n 70 hdrecover_build.log || true
-            echo 'HDRECOVER_DIAGNOSTICO_FIM'
-          } >> "$GITHUB_OUTPUT"
+            tail -n 55 hdrecover_build.log || true
+          } > hdrecover_error_summary.txt
+          B64=$(base64 -w0 hdrecover_error_summary.txt)
+          echo "error_b64=$B64" >> "$GITHUB_OUTPUT"
 
       - name: Preparar APK
         if: steps.compilar.outcome == 'success'
@@ -110,8 +115,9 @@ jobs:
     steps:
       - name: Mostrar erros da compilação
         env:
-          ERROR_SUMMARY: ${{ needs.build.outputs.error_summary }}
+          ERROR_B64: ${{ needs.build.outputs.error_b64 }}
         shell: bash
         run: |
-          printf '%s\n' "$ERROR_SUMMARY"
+          printf '%s' "$ERROR_B64" | base64 -d
+          echo
           exit 1
