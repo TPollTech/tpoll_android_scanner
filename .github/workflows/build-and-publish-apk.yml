@@ -1,5 +1,9 @@
 name: Build and publish APK
 
+concurrency:
+  group: build-apk-main
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
   push:
