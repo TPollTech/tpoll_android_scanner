@@ -19,6 +19,9 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      build_ok: ${{ steps.resumo.outputs.build_ok }}
+      error_summary: ${{ steps.resumo.outputs.error_summary }}
 
     steps:
       - name: Checkout
@@ -40,26 +43,41 @@ jobs:
         run: python3 hdrecover_android/ci_patch.py
 
       - name: Compilar APK de teste
+        id: compilar
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           chmod +x android_app/gradlew
           android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace 2>&1 | tee hdrecover_build.log
 
-      - name: Publicar log completo da compilação
+      - name: Preparar resumo do resultado
+        id: resumo
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: HdRecover-build-log
-          path: hdrecover_build.log
-          if-no-files-found: warn
+        shell: bash
+        run: |
+          if [ "${{ steps.compilar.outcome }}" = "success" ]; then
+            echo "build_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo 'error_summary<<HDRECOVER_DIAGNOSTICO_FIM'
+            echo '===== ERROS PRINCIPAIS ====='
+            grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal|A problem occurred" hdrecover_build.log | head -n 70 || true
+            echo '===== FINAL DO LOG ====='
+            tail -n 70 hdrecover_build.log || true
+            echo 'HDRECOVER_DIAGNOSTICO_FIM'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Preparar APK
+        if: steps.compilar.outcome == 'success'
         run: |
           cp hdrecover_android/app/build/outputs/apk/debug/app-debug.apk HdRecover-Mobile-v0.1.0.apk
           sha256sum HdRecover-Mobile-v0.1.0.apk > HdRecover-Mobile-v0.1.0.sha256
 
       - name: Publicar artefato do APK
+        if: steps.compilar.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: HdRecover-Mobile-v0.1.0
@@ -68,7 +86,7 @@ jobs:
             HdRecover-Mobile-v0.1.0.sha256
 
       - name: Publicar APK na área de releases
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.compilar.outcome == 'success' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: hdrecover-android-v0.1.0
@@ -80,22 +98,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Marcar falha da compilação
+        if: steps.compilar.outcome != 'success'
+        run: exit 1
+
   diagnostico:
     name: Diagnóstico curto
     needs: build
-    if: always() && needs.build.result == 'failure'
+    if: always() && needs.build.outputs.build_ok != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar log do build
-        uses: actions/download-artifact@v4
-        with:
-          name: HdRecover-build-log
-          path: diagnostico
-
       - name: Mostrar erros da compilação
+        env:
+          ERROR_SUMMARY: ${{ needs.build.outputs.error_summary }}
         shell: bash
         run: |
-          echo "===== ERROS PRINCIPAIS DO HDRECOVER ====="
-          grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal|A problem occurred" diagnostico/hdrecover_build.log | head -n 80 || true
-          echo "===== FINAL DO LOG ====="
-          tail -n 80 diagnostico/hdrecover_build.log
+          printf '%s\n' "$ERROR_SUMMARY"
+          exit 1
