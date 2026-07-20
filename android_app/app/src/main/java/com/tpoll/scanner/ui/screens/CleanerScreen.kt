@@ -6,9 +6,12 @@
 package com.tpoll.scanner.ui.screens
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Image
@@ -38,8 +42,10 @@ import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -49,6 +55,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,9 +72,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.tpoll.scanner.cleaner.CleanerBucket
 import com.tpoll.scanner.cleaner.CleanerFileItem
 import com.tpoll.scanner.cleaner.CleanerReport
 import com.tpoll.scanner.cleaner.CleanerScanner
+import com.tpoll.scanner.cleaner.CleanerTrashManager
+import com.tpoll.scanner.cleaner.CleanerTrashResult
+import com.tpoll.scanner.cleaner.DuplicateConfidence
 import com.tpoll.scanner.cleaner.DuplicateGroup
 import com.tpoll.scanner.cleaner.formatCleanerBytes
 import com.tpoll.scanner.ui.theme.HighRiskColor
@@ -86,6 +97,23 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
     var report by remember { mutableStateOf<CleanerReport?>(null) }
     var isScanning by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
+    var pendingTrashItems by remember { mutableStateOf<List<CleanerFileItem>>(emptyList()) }
+
+    val trashLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            successMessage = "Arquivos enviados para a lixeira do Android. Reanalise para atualizar os resultados."
+            scope.launch {
+                isScanning = true
+                report = runCleanerScan(context) { errorMessage = it }
+                isScanning = false
+            }
+        } else {
+            errorMessage = "A limpeza foi cancelada. Nenhum arquivo foi alterado."
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -101,6 +129,38 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
         } else {
             errorMessage = "Permita acesso às mídias para encontrar duplicados, vídeos grandes e arquivos antigos."
         }
+    }
+
+    fun requestTrash(items: List<CleanerFileItem>) {
+        pendingTrashItems = items.distinctBy { it.uri }
+    }
+
+    fun performTrash(items: List<CleanerFileItem>) {
+        pendingTrashItems = emptyList()
+        scope.launch {
+            when (val result = CleanerTrashManager(context).prepareTrash(items)) {
+                CleanerTrashResult.Empty -> errorMessage = "Nenhum arquivo selecionado."
+                is CleanerTrashResult.Failed -> errorMessage = result.message
+                is CleanerTrashResult.DeletedImmediately -> {
+                    successMessage = "${result.deletedCount} arquivo(s) removido(s), liberando ${formatCleanerBytes(result.sizeBytes)}. Falhas: ${result.failedCount}."
+                    isScanning = true
+                    report = runCleanerScan(context) { errorMessage = it }
+                    isScanning = false
+                }
+                is CleanerTrashResult.NeedsSystemConfirmation -> {
+                    successMessage = "Confirme no Android para mover ${result.itemCount} arquivo(s), ${formatCleanerBytes(result.sizeBytes)}, para a lixeira."
+                    trashLauncher.launch(IntentSenderRequest.Builder(result.pendingIntent.intentSender).build())
+                }
+            }
+        }
+    }
+
+    if (pendingTrashItems.isNotEmpty()) {
+        ConfirmTrashDialog(
+            items = pendingTrashItems,
+            onDismiss = { pendingTrashItems = emptyList() },
+            onConfirm = { performTrash(pendingTrashItems) }
+        )
     }
 
     LaunchedEffect(hasPermission) {
@@ -122,13 +182,12 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
                 report = report,
                 isScanning = isScanning,
                 hasPermission = hasPermission,
-                onRequestPermission = {
-                    permissionLauncher.launch(cleanerPermissions())
-                },
+                onRequestPermission = { permissionLauncher.launch(cleanerPermissions()) },
                 onScanAgain = {
                     scope.launch {
                         isScanning = true
                         errorMessage = null
+                        successMessage = null
                         report = runCleanerScan(context) { errorMessage = it }
                         isScanning = false
                     }
@@ -136,59 +195,72 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        if (!successMessage.isNullOrBlank()) {
+            item { InfoCard("Pronto", successMessage.orEmpty(), LowRiskColor) }
+        }
+
         if (!errorMessage.isNullOrBlank()) {
-            item {
-                WarningCard(
-                    title = "Atenção",
-                    message = errorMessage.orEmpty()
-                )
-            }
+            item { WarningCard("Atenção", errorMessage.orEmpty()) }
         }
 
         if (isScanning) {
-            item {
-                ScanningCard()
-            }
+            item { ScanningCard() }
         }
 
         val currentReport = report
         if (currentReport != null) {
-            item {
-                SectionTitle("Resumo da análise")
-            }
-            item {
-                SummaryGrid(currentReport)
-            }
+            item { SectionTitle("Resumo da análise") }
+            item { SummaryGrid(currentReport) }
 
-            item {
-                SectionTitle("O que dá para revisar")
-            }
-            item {
-                CleanerOpportunityList(currentReport)
+            item { SectionTitle("O que dá para revisar") }
+            item { CleanerOpportunityList(currentReport) }
+
+            if (currentReport.exactDuplicateGroups.isNotEmpty()) {
+                item { SectionTitle("Duplicados confirmados") }
+                items(currentReport.exactDuplicateGroups.take(12)) { group ->
+                    DuplicateGroupCard(group, onTrashCopies = { requestTrash(group.items.drop(1)) })
+                }
             }
 
             if (currentReport.duplicateGroups.isNotEmpty()) {
-                item {
-                    SectionTitle("Duplicados prováveis")
-                }
+                item { SectionTitle("Duplicados prováveis") }
                 items(currentReport.duplicateGroups.take(10)) { group ->
-                    DuplicateGroupCard(group)
+                    DuplicateGroupCard(group, onTrashCopies = { requestTrash(group.items.drop(1)) })
+                }
+            }
+
+            if (currentReport.similarPhotoGroups.isNotEmpty()) {
+                item { SectionTitle("Fotos parecidas") }
+                items(currentReport.similarPhotoGroups.take(10)) { group ->
+                    DuplicateGroupCard(group, onTrashCopies = { requestTrash(group.items.drop(1)) })
+                }
+            }
+
+            if (currentReport.whatsappBuckets.isNotEmpty()) {
+                item { SectionTitle("WhatsApp Cleaner") }
+                items(currentReport.whatsappBuckets) { bucket ->
+                    BucketCard(bucket, onTrashBucket = { requestTrash(bucket.items) })
                 }
             }
 
             if (currentReport.largeFiles.isNotEmpty()) {
-                item {
-                    SectionTitle("Arquivos grandes")
-                }
+                item { SectionTitle("Arquivos grandes") }
                 items(currentReport.largeFiles.take(20)) { file ->
-                    LargeFileCard(file)
+                    LargeFileCard(file, onTrash = { requestTrash(listOf(file)) })
+                }
+            }
+
+            if (currentReport.apkFiles.isNotEmpty()) {
+                item { SectionTitle("APKs baixados") }
+                items(currentReport.apkFiles.take(10)) { file ->
+                    LargeFileCard(file, onTrash = { requestTrash(listOf(file)) })
                 }
             }
 
             item {
                 WarningCard(
                     title = "Limpeza segura",
-                    message = "Nesta primeira versão, o app encontra o que ocupa espaço e mostra o que revisar. A exclusão automática deve vir depois com seleção, confirmação e lixeira temporária para evitar apagar algo importante."
+                    message = "Agora o app já pode enviar arquivos selecionados para a lixeira do Android, mas sempre com confirmação. Revise antes de limpar fotos, documentos e vídeos importantes."
                 )
             }
         }
@@ -196,7 +268,7 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
 }
 
 private suspend fun runCleanerScan(
-    context: android.content.Context,
+    context: Context,
     onError: (String) -> Unit
 ): CleanerReport? {
     return withContext(Dispatchers.IO) {
@@ -210,6 +282,33 @@ private suspend fun runCleanerScan(
 }
 
 @Composable
+private fun ConfirmTrashDialog(
+    items: List<CleanerFileItem>,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Confirmar limpeza") },
+        text = {
+            Text(
+                "Você selecionou ${items.size} arquivo(s), somando ${formatCleanerBytes(items.sumOf { it.sizeBytes })}. No Android 11 ou superior, eles serão enviados para a lixeira do sistema quando disponível."
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Continuar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
+}
+
+@Composable
 private fun CleanerHeroCard(
     report: CleanerReport?,
     isScanning: Boolean,
@@ -220,9 +319,7 @@ private fun CleanerHeroCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -245,9 +342,9 @@ private fun CleanerHeroCard(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (report != null) {
-                    "Você pode revisar até ${formatCleanerBytes(report.recoverableBytesEstimate)} em arquivos, duplicados e mídias antigas."
+                    "Você pode revisar até ${formatCleanerBytes(report.recoverableBytesEstimate)} em duplicados, WhatsApp, APKs e arquivos grandes."
                 } else {
-                    "Encontre fotos duplicadas, vídeos grandes, APKs antigos, prints e mídias do WhatsApp."
+                    "Encontre duplicados confirmados, fotos parecidas, vídeos grandes, APKs antigos e mídias do WhatsApp."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
@@ -301,36 +398,12 @@ private fun ScanningCard() {
 private fun SummaryGrid(report: CleanerReport) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.AutoAwesome,
-                label = "Revisável",
-                value = formatCleanerBytes(report.recoverableBytesEstimate),
-                color = MediumRiskColor
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.ContentCopy,
-                label = "Duplicados",
-                value = report.duplicateGroups.size.toString(),
-                color = MaterialTheme.colorScheme.primary
-            )
+            MetricCard(Modifier.weight(1f), Icons.Default.AutoAwesome, "Revisável", formatCleanerBytes(report.recoverableBytesEstimate), MediumRiskColor)
+            MetricCard(Modifier.weight(1f), Icons.Default.Verified, "Confirmados", report.exactDuplicateGroups.size.toString(), LowRiskColor)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.VideoLibrary,
-                label = "Vídeos",
-                value = report.videoCount.toString(),
-                color = HighRiskColor
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Default.Image,
-                label = "Fotos",
-                value = report.imageCount.toString(),
-                color = LowRiskColor
-            )
+            MetricCard(Modifier.weight(1f), Icons.Default.ContentCopy, "Duplicados", report.allDuplicateGroups.size.toString(), MaterialTheme.colorScheme.primary)
+            MetricCard(Modifier.weight(1f), Icons.Default.PhoneAndroid, "WhatsApp", formatCleanerBytes(report.whatsappSizeBytes), HighRiskColor)
         }
     }
 }
@@ -338,72 +411,46 @@ private fun SummaryGrid(report: CleanerReport) {
 @Composable
 private fun CleanerOpportunityList(report: CleanerReport) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        OpportunityRow(
-            icon = Icons.Default.ContentCopy,
-            title = "Duplicados prováveis",
-            subtitle = "${report.duplicateGroups.size} grupos encontrados",
-            value = formatCleanerBytes(report.duplicateGroups.sumOf { it.recoverableBytes }),
-            color = MaterialTheme.colorScheme.primary
-        )
-        OpportunityRow(
-            icon = Icons.Default.VideoLibrary,
-            title = "Arquivos grandes",
-            subtitle = "${report.largeFiles.size} arquivos acima de 100 MB",
-            value = formatCleanerBytes(report.largeFiles.sumOf { it.sizeBytes }),
-            color = HighRiskColor
-        )
-        OpportunityRow(
-            icon = Icons.Default.PhoneAndroid,
-            title = "WhatsApp",
-            subtitle = "${report.whatsappCount} mídias/arquivos encontrados",
-            value = formatCleanerBytes(report.whatsappSizeBytes),
-            color = LowRiskColor
-        )
-        OpportunityRow(
-            icon = Icons.Default.PhotoCamera,
-            title = "Prints",
-            subtitle = "${report.screenshotCount} capturas de tela",
-            value = formatCleanerBytes(report.screenshotSizeBytes),
-            color = MediumRiskColor
-        )
-        OpportunityRow(
-            icon = Icons.Default.Download,
-            title = "Downloads antigos",
-            subtitle = "${report.oldDownloadCount} arquivos com mais de 90 dias",
-            value = formatCleanerBytes(report.oldDownloadSizeBytes),
-            color = MaterialTheme.colorScheme.tertiary
-        )
-        OpportunityRow(
-            icon = Icons.Default.InsertDriveFile,
-            title = "APKs baixados",
-            subtitle = "${report.apkCount} instaladores salvos no celular",
-            value = report.apkCount.toString(),
-            color = HighRiskColor
-        )
+        OpportunityRow(Icons.Default.Verified, "Duplicados confirmados", "${report.exactDuplicateGroups.size} grupos por hash", formatCleanerBytes(report.exactDuplicateGroups.sumOf { it.recoverableBytes }), LowRiskColor)
+        OpportunityRow(Icons.Default.ContentCopy, "Duplicados prováveis", "${report.duplicateGroups.size} grupos por nome/tamanho", formatCleanerBytes(report.duplicateGroups.sumOf { it.recoverableBytes }), MaterialTheme.colorScheme.primary)
+        OpportunityRow(Icons.Default.Image, "Fotos parecidas", "${report.similarPhotoGroups.size} grupos para revisar", formatCleanerBytes(report.similarPhotoGroups.sumOf { it.recoverableBytes }), MediumRiskColor)
+        OpportunityRow(Icons.Default.VideoLibrary, "Arquivos grandes", "${report.largeFiles.size} arquivos acima de 100 MB", formatCleanerBytes(report.largeFiles.sumOf { it.sizeBytes }), HighRiskColor)
+        OpportunityRow(Icons.Default.PhoneAndroid, "WhatsApp Cleaner", "${report.whatsappCount} mídias/arquivos encontrados", formatCleanerBytes(report.whatsappSizeBytes), LowRiskColor)
+        OpportunityRow(Icons.Default.PhotoCamera, "Prints", "${report.screenshotCount} capturas de tela", formatCleanerBytes(report.screenshotSizeBytes), MediumRiskColor)
+        OpportunityRow(Icons.Default.Download, "Downloads antigos", "${report.oldDownloadCount} arquivos com mais de 90 dias", formatCleanerBytes(report.oldDownloadSizeBytes), MaterialTheme.colorScheme.tertiary)
+        OpportunityRow(Icons.Default.InsertDriveFile, "APKs baixados", "${report.apkCount} instaladores salvos", report.apkCount.toString(), HighRiskColor)
     }
 }
 
 @Composable
-private fun DuplicateGroupCard(group: DuplicateGroup) {
+private fun DuplicateGroupCard(group: DuplicateGroup, onTrashCopies: () -> Unit) {
+    val color = when (group.confidence) {
+        DuplicateConfidence.CONFIRMED_HASH -> LowRiskColor
+        DuplicateConfidence.PROBABLE_METADATA -> MaterialTheme.colorScheme.primary
+        DuplicateConfidence.SIMILAR_PHOTO_NAME -> MediumRiskColor
+    }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.ContentCopy, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(Icons.Default.ContentCopy, contentDescription = null, tint = color)
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(group.title, fontWeight = FontWeight.Bold)
                     Text(
-                        "${group.items.size} arquivos parecidos pelo nome e tamanho",
+                        "${group.items.size} arquivos • ${group.confidence.label}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
-                Text(
-                    formatCleanerBytes(group.recoverableBytes),
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text(formatCleanerBytes(group.recoverableBytes), fontWeight = FontWeight.Bold, color = color)
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                group.recommendation,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
+            )
             Spacer(modifier = Modifier.height(8.dp))
             group.items.take(3).forEach { item ->
                 Text(
@@ -412,73 +459,93 @@ private fun DuplicateGroupCard(group: DuplicateGroup) {
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
                 )
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedButton(onClick = onTrashCopies, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Mover cópias para lixeira")
+            }
         }
     }
 }
 
 @Composable
-private fun LargeFileCard(file: CleanerFileItem) {
+private fun BucketCard(bucket: CleanerBucket, onTrashBucket: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = when {
-                    file.mimeType.startsWith("video") -> Icons.Default.PlayCircle
-                    file.mimeType.startsWith("image") -> Icons.Default.Image
-                    else -> Icons.Default.Folder
-                },
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = LowRiskColor, modifier = Modifier.size(28.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(file.name, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(bucket.title, fontWeight = FontWeight.Bold)
                 Text(
-                    file.relativePath.ifBlank { file.category.label },
+                    "${bucket.count} arquivo(s) • ${formatCleanerBytes(bucket.sizeBytes)}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    maxLines = 1
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
-            Text(
-                formatCleanerBytes(file.sizeBytes),
-                fontWeight = FontWeight.Bold,
-                color = HighRiskColor
-            )
+            OutlinedButton(onClick = onTrashBucket) {
+                Text("Limpar")
+            }
         }
     }
 }
 
 @Composable
-private fun OpportunityRow(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    value: String,
-    color: Color
-) {
+private fun LargeFileCard(file: CleanerFileItem, onTrash: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = when {
+                        file.mimeType.startsWith("video") -> Icons.Default.PlayCircle
+                        file.mimeType.startsWith("image") -> Icons.Default.Image
+                        else -> Icons.Default.Folder
+                    },
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(file.name, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(
+                        file.relativePath.ifBlank { file.category.label },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1
+                    )
+                }
+                Text(formatCleanerBytes(file.sizeBytes), fontWeight = FontWeight.Bold, color = HighRiskColor)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(onClick = onTrash, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Mover para lixeira")
+            }
+        }
+    }
+}
+
+@Composable
+private fun OpportunityRow(icon: ImageVector, title: String, subtitle: String, value: String, color: Color) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = color.copy(alpha = 0.12f)
-            ) {
+            Surface(shape = RoundedCornerShape(12.dp), color = color.copy(alpha = 0.12f)) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.padding(9.dp).size(22.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(title, fontWeight = FontWeight.Bold)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
             Text(value, fontWeight = FontWeight.Bold, color = color)
         }
@@ -486,13 +553,7 @@ private fun OpportunityRow(
 }
 
 @Composable
-private fun MetricCard(
-    modifier: Modifier,
-    icon: ImageVector,
-    label: String,
-    value: String,
-    color: Color
-) {
+private fun MetricCard(modifier: Modifier, icon: ImageVector, label: String, value: String, color: Color) {
     Card(modifier = modifier, shape = RoundedCornerShape(16.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -508,16 +569,16 @@ private fun MetricCard(
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(top = 4.dp)
-    )
+    Text(text = text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
 }
 
 @Composable
 private fun WarningCard(title: String, message: String) {
+    InfoCard(title, message, MediumRiskColor)
+}
+
+@Composable
+private fun InfoCard(title: String, message: String, color: Color) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
         modifier = Modifier.fillMaxWidth()
@@ -527,7 +588,7 @@ private fun WarningCard(title: String, message: String) {
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Icon(Icons.Default.Warning, contentDescription = null, tint = color)
             Column {
                 Text(title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSecondaryContainer)
                 Text(
@@ -542,17 +603,13 @@ private fun WarningCard(title: String, message: String) {
 
 private fun cleanerPermissions(): Array<String> {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(
-            Manifest.permission.READ_MEDIA_IMAGES,
-            Manifest.permission.READ_MEDIA_VIDEO,
-            Manifest.permission.READ_MEDIA_AUDIO
-        )
+        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO, Manifest.permission.READ_MEDIA_AUDIO)
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 }
 
-private fun hasCleanerPermissions(context: android.content.Context): Boolean {
+private fun hasCleanerPermissions(context: Context): Boolean {
     return cleanerPermissions().any { permission ->
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
