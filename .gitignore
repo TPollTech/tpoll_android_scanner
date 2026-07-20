@@ -9,6 +9,11 @@ android_app/gradle/wrapper/gradle-wrapper.jar
 # Firebase / local secrets
 android_app/app/google-services.json
 
+# Android signing secrets
+android_app/release.keystore
+*.keystore
+*.jks
+
 # OS files
 .DS_Store
 Thumbs.db
