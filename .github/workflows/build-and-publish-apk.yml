@@ -1,0 +1,89 @@
+name: Build and publish APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'TPollScanner-release.apk'
+      - '**/*.md'
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore google-services.json if secret exists
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > android_app/app/google-services.json
+            echo "google-services.json restored from secret."
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 secret not set. Building without Google login config."
+          fi
+
+      - name: Restore release keystore if secrets exist
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_STORE_PASSWORD" ] && [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android_app/release.keystore
+            {
+              echo ""
+              echo "RELEASE_STORE_FILE=../release.keystore"
+              echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+              echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+              echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+            } >> android_app/gradle.properties
+            echo "Release keystore restored from secrets."
+          else
+            echo "Release signing secrets not set. APK will be signed with debug fallback key."
+          fi
+
+      - name: Build release APK
+        working-directory: android_app
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleRelease
+
+      - name: Copy APK to site download path
+        run: |
+          cp android_app/app/build/outputs/apk/release/app-release.apk TPollScanner-release.apk
+          ls -lh TPollScanner-release.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TPollScanner-release
+          path: TPollScanner-release.apk
+
+      - name: Commit APK to main for GitHub Pages download
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f TPollScanner-release.apk
+          if git diff --cached --quiet; then
+            echo "APK unchanged. Nothing to commit."
+          else
+            git commit -m "Publicar APK automático"
+            git push
+          fi
