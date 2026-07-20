@@ -16,12 +16,50 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,7 +79,9 @@ import com.tpoll.scanner.ui.screens.DashboardScreen
 import com.tpoll.scanner.ui.screens.HealthScreen
 import com.tpoll.scanner.ui.screens.HistoryScreen
 import com.tpoll.scanner.ui.screens.PermissionScreen
+import com.tpoll.scanner.ui.screens.PremiumScreen
 import com.tpoll.scanner.ui.screens.QuarantineScreen
+import com.tpoll.scanner.ui.screens.ScamDetectorScreen
 import com.tpoll.scanner.ui.screens.SettingsScreen
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
 
@@ -254,6 +294,8 @@ class MainActivity : ComponentActivity() {
 enum class Screen(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Início", Icons.Default.Home),
     Cleaner("cleaner", "Limpeza", Icons.Default.CleaningServices),
+    Scams("scams", "Golpes", Icons.Default.Warning),
+    Premium("premium", "Premium", Icons.Default.Star),
     History("history", "Histórico", Icons.Default.History),
     Health("health", "Saúde", Icons.Default.Favorite),
     Settings("settings", "Ajustes", Icons.Default.Settings)
@@ -274,7 +316,7 @@ fun LoginScreen(
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
@@ -305,10 +347,7 @@ fun LoginScreen(
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = onGoogleLogin,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Button(onClick = onGoogleLogin, modifier = Modifier.fillMaxWidth()) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_google),
                             contentDescription = null,
@@ -318,10 +357,7 @@ fun LoginScreen(
                         Text("Entrar com Google")
                     }
                     Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = onContinueWithoutLogin,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    OutlinedButton(onClick = onContinueWithoutLogin, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Continuar sem conta")
@@ -330,9 +366,7 @@ fun LoginScreen(
                     if (!errorMessage.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            ),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -350,58 +384,9 @@ fun LoginScreen(
     }
 }
 
-@Composable
-fun FirebaseSetupScreen() {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            ElevatedCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(18.dp))
-                    Text(
-                        text = "Configuração Firebase pendente",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Crie o projeto no Firebase, ative o login Google e coloque o arquivo google-services.json em android_app/app/ para liberar o login Google.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
-    onSignOut: () -> Unit = {}
-) {
+fun MainScreen(onSignOut: () -> Unit = {}) {
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
     var showQuarantine by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
@@ -419,16 +404,15 @@ fun MainScreen(
 
     Scaffold(
         topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shadowElevation = 4.dp
-            ) {
+            Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 4.dp) {
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
                             text = when (currentScreen) {
                                 Screen.Dashboard -> "TPoll Scanner"
                                 Screen.Cleaner -> "Limpeza inteligente"
+                                Screen.Scams -> "Detector de golpes"
+                                Screen.Premium -> "TPoll Premium"
                                 Screen.History -> "Histórico"
                                 Screen.Health -> "Saúde do dispositivo"
                                 Screen.Settings -> "Ajustes"
@@ -438,10 +422,7 @@ fun MainScreen(
                     },
                     actions = {
                         IconButton(onClick = onSignOut) {
-                            Icon(
-                                imageVector = Icons.Default.Logout,
-                                contentDescription = "Sair"
-                            )
+                            Icon(imageVector = Icons.Default.Logout, contentDescription = "Sair")
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -452,10 +433,7 @@ fun MainScreen(
             }
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp
-            ) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 8.dp) {
                 screens.forEach { screen ->
                     NavigationBarItem(
                         icon = {
@@ -477,22 +455,18 @@ fun MainScreen(
                             Text(
                                 screen.label,
                                 fontWeight = if (currentScreen.route == screen.route) FontWeight.SemiBold else FontWeight.Normal,
-                                fontSize = 11.sp
+                                fontSize = 10.sp
                             )
                         },
                         selected = currentScreen.route == screen.route,
                         onClick = { currentScreen = screen },
-                        colors = NavigationBarItemDefaults.colors(
-                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                        )
+                        colors = NavigationBarItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                     )
                 }
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier.padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.padding(paddingValues)) {
             when (currentScreen) {
                 Screen.Dashboard -> DashboardScreen(
                     onNavigateToHistory = { currentScreen = Screen.History },
@@ -501,6 +475,8 @@ fun MainScreen(
                     onNavigateToPermissions = { showPermissions = true }
                 )
                 Screen.Cleaner -> CleanerScreen()
+                Screen.Scams -> ScamDetectorScreen()
+                Screen.Premium -> PremiumScreen()
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()
                 Screen.Settings -> SettingsScreen()
