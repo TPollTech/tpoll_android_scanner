@@ -4,6 +4,16 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val releaseStoreFilePath = project.findProperty("RELEASE_STORE_FILE") as String?
+val releaseStorePasswordValue = project.findProperty("RELEASE_STORE_PASSWORD") as String?
+val releaseKeyAliasValue = project.findProperty("RELEASE_KEY_ALIAS") as String?
+val releaseKeyPasswordValue = project.findProperty("RELEASE_KEY_PASSWORD") as String?
+val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
+    !releaseStorePasswordValue.isNullOrBlank() &&
+    !releaseKeyAliasValue.isNullOrBlank() &&
+    !releaseKeyPasswordValue.isNullOrBlank() &&
+    file(releaseStoreFilePath).exists()
+
 android {
     namespace = "com.tpoll.scanner"
     compileSdk = 34
@@ -22,17 +32,23 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(project.properties["RELEASE_STORE_FILE"] as String)
-            storePassword = project.properties["RELEASE_STORE_PASSWORD"] as String
-            keyAlias = project.properties["RELEASE_KEY_ALIAS"] as String
-            keyPassword = project.properties["RELEASE_KEY_PASSWORD"] as String
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseStoreFilePath!!)
+                storePassword = releaseStorePasswordValue
+                keyAlias = releaseKeyAliasValue
+                keyPassword = releaseKeyPasswordValue
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseSigning) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
