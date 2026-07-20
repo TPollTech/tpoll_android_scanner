@@ -15,8 +15,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
-  issues: write
 
 jobs:
   build:
@@ -42,7 +40,6 @@ jobs:
         run: python3 hdrecover_android/ci_patch.py
 
       - name: Compilar APK de teste
-        id: gradle_build
         shell: bash
         run: |
           set -o pipefail
@@ -57,43 +54,12 @@ jobs:
           path: hdrecover_build.log
           if-no-files-found: warn
 
-      - name: Salvar diagnóstico na branch do PR
-        if: failure() && github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TARGET_BRANCH: ${{ github.head_ref }}
-        shell: bash
-        run: |
-          {
-            echo "BUILD DO HDRECOVER MOBILE"
-            echo
-            grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal" hdrecover_build.log || true
-            echo
-            echo "--- ULTIMAS 180 LINHAS ---"
-            tail -n 180 hdrecover_build.log
-          } > hdrecover_pr_build_error.txt
-          CONTENT=$(base64 -w0 hdrecover_pr_build_error.txt)
-          SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/hdrecover_pr_build_error.txt?ref=${TARGET_BRANCH}" --jq .sha 2>/dev/null || true)
-          if [ -n "$SHA" ]; then
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/hdrecover_pr_build_error.txt" \
-              -f message='ci: atualizar diagnóstico do build Android' \
-              -f content="$CONTENT" \
-              -f branch="$TARGET_BRANCH" \
-              -f sha="$SHA"
-          else
-            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/hdrecover_pr_build_error.txt" \
-              -f message='ci: salvar diagnóstico do build Android' \
-              -f content="$CONTENT" \
-              -f branch="$TARGET_BRANCH"
-          fi
-
       - name: Preparar APK
         run: |
           cp hdrecover_android/app/build/outputs/apk/debug/app-debug.apk HdRecover-Mobile-v0.1.0.apk
           sha256sum HdRecover-Mobile-v0.1.0.apk > HdRecover-Mobile-v0.1.0.sha256
 
-      - name: Publicar artefato do workflow
+      - name: Publicar artefato do APK
         uses: actions/upload-artifact@v4
         with:
           name: HdRecover-Mobile-v0.1.0
@@ -107,13 +73,29 @@ jobs:
         with:
           tag_name: hdrecover-android-v0.1.0
           name: HdRecover Mobile v0.1.0
-          body: |
-            Primeira versão Android dedicada do HdRecover.
-
-            Conecte um HD, SSD ou pendrive por USB OTG e selecione uma pasta de destino diferente do dispositivo de origem.
           prerelease: true
           files: |
             HdRecover-Mobile-v0.1.0.apk
             HdRecover-Mobile-v0.1.0.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  diagnostico:
+    name: Diagnóstico curto
+    needs: build
+    if: always() && needs.build.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar log do build
+        uses: actions/download-artifact@v4
+        with:
+          name: HdRecover-build-log
+          path: diagnostico
+
+      - name: Mostrar erros da compilação
+        shell: bash
+        run: |
+          echo "===== ERROS PRINCIPAIS DO HDRECOVER ====="
+          grep -E -i "error:|FAILURE:|What went wrong|Execution failed|Compilation failed|cannot find symbol|incompatible types|illegal|A problem occurred" diagnostico/hdrecover_build.log | head -n 80 || true
+          echo "===== FINAL DO LOG ====="
+          tail -n 80 diagnostico/hdrecover_build.log
