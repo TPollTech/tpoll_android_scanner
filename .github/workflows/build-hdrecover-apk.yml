@@ -48,6 +48,28 @@ jobs:
           chmod +x android_app/gradlew
           android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace 2>&1 | tee hdrecover_build.log
 
+      - name: Salvar log de falha no repositório
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          tail -n 220 hdrecover_build.log > hdrecover_build_error.txt
+          CONTENT=$(base64 -w0 hdrecover_build_error.txt)
+          SHA=$(gh api "repos/${GITHUB_REPOSITORY}/contents/hdrecover_build_error.txt?ref=main" --jq .sha 2>/dev/null || true)
+          if [ -n "$SHA" ]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/hdrecover_build_error.txt" \
+              -f message='ci: atualizar diagnóstico do HdRecover' \
+              -f content="$CONTENT" \
+              -f branch='main' \
+              -f sha="$SHA"
+          else
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/contents/hdrecover_build_error.txt" \
+              -f message='ci: salvar diagnóstico do HdRecover' \
+              -f content="$CONTENT" \
+              -f branch='main'
+          fi
+
       - name: Publicar erro de compilação no PR
         if: failure() && github.event_name == 'pull_request'
         env:
