@@ -1,27 +1,60 @@
-# TPoll Android App Scanner
+# TPoll Scanner
 
-Scanner simples para bancada de assistência técnica. Ele usa ADB para listar apps instalados em um celular Android conectado no PC, calcula uma pontuação de risco e permite remover apps suspeitos com confirmação.
+App Android da TPollTech com foco em segurança, privacidade e limpeza inteligente para usuários comuns.
 
-## O que faz
+A direção do produto é evoluir para um app do tipo:
 
-- Detecta celulares Android conectados via ADB.
-- Lista apps instalados, com foco em apps baixados pelo usuário.
-- Analisa nomes/pacotes suspeitos, permissões sensíveis, app-ops e origem do instalador.
-- Classifica apps em BAIXO, MÉDIO e ALTO risco.
-- Permite selecionar um ou vários apps e remover pelo comando:
-
-```bat
-adb shell pm uninstall --user 0 nome.do.pacote
+```txt
+Antivírus + Limpeza + Privacidade
 ```
 
-- Possui botão **Selecionar alto risco** para marcar automaticamente os apps classificados como ALTO.
-- Permite copiar os comandos de remoção para executar manualmente, se preferir.
-- Permite forçar parada do app selecionado.
-- Exporta relatório em CSV, JSON ou TXT.
+## O que o app já faz
+
+- Analisa apps instalados.
+- Classifica risco de apps suspeitos.
+- Usa regras locais em `rules.json`.
+- Usa base local `virus_db.json`.
+- Mostra permissões sensíveis.
+- Tem tela de saúde do dispositivo.
+- Tem histórico de scans.
+- Tem proteção/Shield em segundo plano.
+- Tem login Google via Firebase/FirebaseUI.
+
+## Novo módulo: Limpeza inteligente
+
+A branch `feature/consumer-toolkit-roadmap` adiciona uma nova aba de limpeza para usuário comum.
+
+Ela encontra:
+
+- arquivos grandes;
+- fotos duplicadas prováveis;
+- vídeos duplicados prováveis;
+- mídias do WhatsApp;
+- prints/capturas de tela;
+- downloads antigos;
+- APKs baixados;
+- estimativa de espaço recuperável.
+
+Nesta primeira versão, o módulo é seguro e não apaga nada automaticamente. Ele mostra o que revisar. A exclusão com seleção, confirmação e lixeira temporária deve entrar em uma próxima versão.
+
+## Roadmap comercial
+
+Veja o plano completo em:
+
+```txt
+ROADMAP_CONSUMER_TOOLKIT.md
+```
+
+Resumo da visão:
+
+```txt
+TPoll Scanner / TPoll Guard
+Antivírus, limpeza e privacidade em um só app.
+```
 
 ## Login com Google
 
-A branch `feature/google-login` já deixa o app preparado para login com Google usando Firebase Authentication + FirebaseUI.
+O app está preparado para login com Google usando Firebase Authentication + FirebaseUI.
 
 Para ativar de verdade, falta apenas criar o projeto no Firebase, ativar o provedor Google e colocar o arquivo real:
 
@@ -35,37 +68,39 @@ Veja o passo a passo completo em:
 android_app/FIREBASE_LOGIN_SETUP.md
 ```
 
-## Como usar no Windows
-
-1. Instale Python 3.
-2. Baixe o Android SDK Platform Tools, ou coloque o `adb.exe` na pasta do programa.
-3. Ative no celular:
-   - Opções do desenvolvedor
-   - Depuração USB
-4. Conecte o celular no PC.
-5. Autorize a depuração USB na tela do celular.
-6. Execute:
-
-```bat
-run.bat
-```
-
-7. Clique em **Atualizar**.
-8. Clique em **Escanear apps**.
-9. Revise os apps marcados como MÉDIO/ALTO.
-10. Selecione o app e clique em **Remover selecionado(s)**.
+Para usuário comum, o login deve ser opcional no começo. A conta Google deve ser usada principalmente para histórico, premium, sincronização e recursos futuros.
 
 ## Segurança
 
-O programa não remove nada sozinho. Ele exige seleção e confirmação antes de desinstalar.
+O app não deve prometer remoção total de vírus ou proteção 100% garantida. O posicionamento recomendado é:
 
-Nem todo app com permissão sensível é vírus. Apps de banco, launcher, VPN, teclado, antivírus, acessibilidade e apps de fabricante podem aparecer com risco por terem permissões fortes. Revise antes de remover.
+```txt
+Análise de apps suspeitos, permissões perigosas e arquivos que ocupam espaço.
+```
+
+Sempre que houver limpeza/exclusão, o fluxo deve ser:
+
+1. Analisar.
+2. Mostrar achados.
+3. Explicar em linguagem simples.
+4. Usuário seleciona.
+5. Confirmar.
+6. Só então apagar ou mover para lixeira.
+
+## Build Android
+
+```bat
+cd android_app
+gradlew assembleDebug
+```
+
+Para release, use o processo atual de assinatura do projeto.
 
 ## Personalização das regras
 
 O arquivo `rules.json` permite ajustar:
 
-- Palavras suspeitas no nome do pacote.
-- Instaladores considerados confiáveis.
-- Permissões que aumentam a pontuação.
-- App-ops que aumentam a pontuação.
+- palavras suspeitas no nome do pacote;
+- instaladores considerados confiáveis;
+- permissões que aumentam a pontuação;
+- app-ops que aumentam a pontuação.
