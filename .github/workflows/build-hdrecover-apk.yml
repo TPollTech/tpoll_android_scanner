@@ -49,6 +49,14 @@ jobs:
           chmod +x android_app/gradlew
           android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace 2>&1 | tee hdrecover_build.log
 
+      - name: Publicar log completo da compilação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HdRecover-build-log
+          path: hdrecover_build.log
+          if-no-files-found: warn
+
       - name: Salvar log de falha no repositório
         if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
