@@ -15,6 +15,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -36,10 +37,29 @@ jobs:
       - name: Instalar SDK 34
         run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
 
+      - name: Aplicar correção de compatibilidade do Java
+        run: python3 hdrecover_android/ci_patch.py
+
       - name: Compilar APK de teste
+        id: gradle_build
+        shell: bash
         run: |
+          set -o pipefail
           chmod +x android_app/gradlew
-          android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace
+          android_app/gradlew -p hdrecover_android clean assembleDebug --stacktrace 2>&1 | tee hdrecover_build.log
+
+      - name: Publicar erro de compilação no PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### Log final da compilação do HdRecover"
+            echo '```text'
+            tail -n 160 hdrecover_build.log
+            echo '```'
+          } > hdrecover_error_comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file hdrecover_error_comment.md
 
       - name: Preparar APK
         run: |
