@@ -82,13 +82,15 @@ class ScanService : Service() {
                 val remover = AppRemover(applicationContext)
                 val app = application as TPollApp
 
+                val selfPkg = packageName
                 val findings = analyzer.analyzeAllPackages(
-                    thirdPartyOnly = true
-                ) { current, total, packageName ->
+                    thirdPartyOnly = true,
+                    selfPackage = selfPkg
+                ) { current, total, pkgName ->
                     if (isActive) {
                         withContext(Dispatchers.Main) {
-                            updateNotification("Escaneando $current/$total: $packageName")
-                            app.notificationHelper.showScanProgress(current, total, packageName)
+                            updateNotification("Escaneando $current/$total: $pkgName")
+                            app.notificationHelper.showScanProgress(current, total, pkgName)
                         }
                     }
                 }

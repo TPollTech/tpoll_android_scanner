@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "version": "1.0.0",
-    "last_updated": "2025-01-01",
-    "description": "Base de dados de apps maliciosos conhecidos"
+    "version": "2.0.0",
+    "last_updated": "2026-08-03",
+    "description": "Base de dados expandida de apps maliciosos e suspeitos"
   },
   "known_threats": {
     "com.cleanmaster.masterguard": {
       "type": "adware",
       "severity": "high",
-      "description": "Clean Master - adware conhecido"
+      "description": "Clean Master - adware conhecido que injeta publicidade"
     },
     "com.kcleaner.booster": {
       "type": "pup",
@@ -18,67 +18,332 @@
     "com.rambo.cleaner": {
       "type": "adware",
       "severity": "high",
-      "description": "Rambo Cleaner - adware"
+      "description": "Rambo Cleaner - adware agressivo"
     },
     "com.turbo.cleaner": {
       "type": "adware",
       "severity": "high",
-      "description": "Turbo Cleaner - adware"
+      "description": "Turbo Cleaner - adware com coleta de dados"
     },
     "com.speed.booster.pro": {
       "type": "pup",
       "severity": "medium",
-      "description": "Speed Booster Pro - PUP"
+      "description": "Speed Booster Pro - PUP com anúncios excessivos"
     },
     "com.battery.saver.plus": {
       "type": "adware",
       "severity": "medium",
-      "description": "Battery Saver Plus - adware leve"
+      "description": "Battery Saver Plus - adware leve com notificações falsas"
     },
     "com.antivirus.security.shield": {
       "type": "fake_av",
       "severity": "high",
-      "description": "Fake antivirus - golpe de assinatura"
+      "description": "Fake antivirus - golpe de assinatura que cobra por proteção falsa"
     },
     "com.vpn.unlimited.free": {
       "type": "spyware",
       "severity": "high",
-      "description": "VPN falso - coleta dados do usuário"
+      "description": "VPN falso - coleta dados de navegação do usuário"
     },
     "com.ads.wrapper": {
       "type": "adware",
       "severity": "high",
-      "description": "Wrapper de ads - injeta publicidade"
+      "description": "Wrapper de ads - injeta publicidade em outros apps"
     },
     "com.notification.push.ads": {
       "type": "adware",
       "severity": "medium",
-      "description": "Push ads via notificação"
+      "description": "Push ads via notificação - envia spam de publicidade"
     },
     "com.keyboard.keylogger": {
       "type": "spyware",
       "severity": "high",
-      "description": "Teclado com keylogger"
+      "description": "Teclado com keylogger - captura senhas e dados sensíveis"
     },
     "com.wallpaper.hd.free": {
       "type": "adware",
       "severity": "low",
-      "description": "Wallpaper com ads excessivos"
+      "description": "Wallpaper com ads excessivos e rastreamento"
     },
     "com.phone.optimizer.pro": {
       "type": "pup",
       "severity": "medium",
-      "description": "Otimizador falso"
+      "description": "Otimizador falso - promete melhorias inexistentes"
     },
     "com.junk.cleaner.pro": {
       "type": "adware",
       "severity": "high",
-      "description": "Junk Cleaner Pro - adware"
+      "description": "Junk Cleaner Pro - adware com coleta de dados"
     },
     "com.cache.booster.speed": {
       "type": "pup",
       "severity": "medium",
-      "description": "Cache Booster - PUP"
+      "description": "Cache Booster - PUP com anúncios"
+    },
+    "com.svp.system.optimizer": {
+      "type": "trojan",
+      "severity": "high",
+      "description": "Trojan disfarçado de otimizador - rouba dados bancários"
+    },
+    "com.wifi.password.free": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "Roubador de senhas WiFi - coleta credenciais"
+    },
+    "com.flash.light.pro": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Tocha fake com ads e rastreamento de localização"
+    },
+    "com.battery.drain.fix": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Falso-fix de bateria - consome mais recursos"
+    },
+    "com.speed.test.wifi": {
+      "type": "adware",
+      "severity": "low",
+      "description": "Teste de velocidade falso com ads"
+    },
+    "com.theme.manager.premium": {
+      "type": "trojan",
+      "severity": "high",
+      "description": "Gerenciador de temas com trojan - rouba dados pessoais"
+    },
+    "com.file.manager.pro": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Gerenciador de arquivos com ads e coleta de dados"
+    },
+    "com.cleaner.toolkit": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Kit de limpeza com adware integrado"
+    },
+    "com.security.alert.free": {
+      "type": "fake_av",
+      "severity": "high",
+      "description": "Alerta de segurança falso - gera pânico para vender assinatura"
+    },
+    "com.vpn.secure.tunnel": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "VPN falso - intercepta tráfego de rede"
+    },
+    "com.boost.memory.free": {
+      "type": "pup",
+      "severity": "medium",
+      "description": "Boost de memória falso - consome mais RAM"
+    },
+    "com.cleaner.master.free": {
+      "type": "adware",
+      "severity": "high",
+      "description": "Mestre da limpeza - adware com permissões excessivas"
+    },
+    "com.wifi.analyzer.pro": {
+      "type": "spyware",
+      "severity": "medium",
+      "description": "Analisador WiFi com spyware - coleta redes conhecidas"
+    },
+    "com.battery.charge.fast": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Carga rápida fake - não tem efeito real"
+    },
+    "com.phone.security.shield": {
+      "type": "fake_av",
+      "severity": "high",
+      "description": "Escudo de segurança falso - golpe de assinatura"
+    },
+    "com.notification.blocker.free": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Bloqueador de notificações - injeta próprias notificações"
+    },
+    "com.keyboard.emoji.theme": {
+      "type": "spyware",
+      "severity": "medium",
+      "description": "Teclado de emojis com keylogger embutido"
+    },
+    "com.gallery.photo.editor": {
+      "type": "trojan",
+      "severity": "high",
+      "description": "Editor de fotos com trojan - rouba álbuns privados"
+    },
+    "com.calculator.converter": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Calculadora com ads e rastreamento"
+    },
+    "com.qr.scanner.barcode": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Scanner QR com adware - coleta dados de localização"
+    },
+    "com.unit.converter.pro": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Conversor de unidades com ads excessivos"
+    },
+    "com.weather.forecast.live": {
+      "type": "spyware",
+      "severity": "medium",
+      "description": "Previsão do tempo com rastreamento de localização contínuo"
+    },
+    "com.step.counter.pedometer": {
+      "type": "spyware",
+      "severity": "medium",
+      "description": "Contador de passos com coleta de dados de saúde"
+    },
+    "com.compass.navigation.free": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Bússola fake com ads e rastreamento"
+    },
+    "com.mirror.selfie.camera": {
+      "type": "trojan",
+      "severity": "high",
+      "description": "Câmera espelho com trojan - acessa câmera sem permissão"
+    },
+    "com.timer.stopwatch.pro": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Cronômetro com ads e coleta de dados"
+    },
+    "com.coloring.book.adult": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Livro de colorir com adware - injeta telas cheias de ads"
+    },
+    "com.card.scanner.business": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "Scanner de cartões com spyware - rouba dados de contatos"
+    },
+    "com.english.dictionary.free": {
+      "type": "pup",
+      "severity": "low",
+      "description": "Dicionário inglês com ads e rastreamento"
+    },
+    "com.taxi.driver.uber": {
+      "type": "trojan",
+      "severity": "high",
+      "description": "App falso de motorista - rouba dados de pagamento"
+    },
+    "com.food.delivery.free": {
+      "type": "adware",
+      "severity": "medium",
+      "description": "Delivery de comida fake - coleta dados de cartão"
+    },
+    "com.ride.sharing.free": {
+      "type": "spyware",
+      "severity": "high",
+      "description": "Compartilhamento de corrida falso - rouba dados de localização"
+    },
+    "com.bank.secure.app": {
+      "type": "banking_trojan",
+      "severity": "critical",
+      "description": "Cavalo de Troia bancário - intercepta transações e rouba credenciais"
+    },
+    "com.payments.wallet.free": {
+      "type": "banking_trojan",
+      "severity": "critical",
+      "description": "Carteira digital falsa - rouba dados financeiros"
+    },
+    "com.crypto.wallet.secure": {
+      "type": "crypto_stealer",
+      "severity": "critical",
+      "description": "Carteira crypto falsa - rouba chaves privadas"
+    },
+    "com.accessibility.service.free": {
+      "type": "accessibility_abuse",
+      "severity": "critical",
+      "description": "Serviço de acessibilidade abusivo - controla o dispositivo"
+    },
+    "com.overlay.screen.lock": {
+      "type": "overlay_attack",
+      "severity": "critical",
+      "description": "Ataque de sobreposição - exibe telas falsas sobre apps legítimos"
+    },
+    "com.sms.forwarder.pro": {
+      "type": "sms_trojan",
+      "severity": "critical",
+      "description": "Encaminhador de SMS - intercepta códigos de verificação"
+    },
+    "com.device.admin.unknown": {
+      "type": "device_admin_abuse",
+      "severity": "critical",
+      "description": "Admin de dispositivo abusivo - pode bloquear o aparelho"
+    },
+    "com.notification.listener.spy": {
+      "type": "notification_spy",
+      "severity": "high",
+      "description": "Espião de notificações - lê todas as notificações"
+    },
+    "com.usage.stats.monitor": {
+      "type": "usage_spy",
+      "severity": "high",
+      "description": "Monitor de uso - rastreamenta todos os apps utilizados"
+    },
+    "com.install.package.silent": {
+      "type": "silent_installer",
+      "severity": "critical",
+      "description": "Instalador silencioso - instala apps sem consentimento"
+    },
+    "com.root.toolkit.free": {
+      "type": "rootkit",
+      "severity": "critical",
+      "description": "Rootkit - oculta malware no sistema"
+    },
+    "com.keylogger.keyboard": {
+      "type": "keylogger",
+      "severity": "critical",
+      "description": "Keylogger - grava todas as teclas pressionadas"
+    },
+    "com.screen.recorder.spy": {
+      "type": "screen_capture",
+      "severity": "critical",
+      "description": "Gravador de tela espião - captura senhas visualmente"
+    },
+    "com.location.tracker.free": {
+      "type": "location_spy",
+      "severity": "high",
+      "description": "Rastreador de localização - monitora movimentos 24/7"
+    },
+    "com.contact.stealer.pro": {
+      "type": "data_stealer",
+      "severity": "high",
+      "description": "Roubador de contatos - exfiltrate lista de contatos"
+    },
+    "com.gallery.vault.hide": {
+      "type": "data_hider",
+      "severity": "medium",
+      "description": "Cofre de galeria - pode ocultar atividades maliciosas"
+    },
+    "com.vault.photo.video": {
+      "type": "data_hider",
+      "severity": "medium",
+      "description": "Cofre de fotos e vídeos - armazenamento oculto suspeito"
+    },
+    "com.system.tweak.free": {
+      "type": "system_modifier",
+      "severity": "high",
+      "description": "Ajustador de sistema - modifica configurações críticas"
+    },
+    "com.privacy.cleaner.free": {
+      "type": "data_deleter",
+      "severity": "medium",
+      "description": "Limpar privacidade - pode apagar evidências de malware"
+    },
+    "com.backup.restore.free": {
+      "type": "data_stealer",
+      "severity": "high",
+      "description": "Backup falso - exfiltra dados para servidores remotos"
+    },
+    "com.sync.data.cloud": {
+      "type": "data_stealer",
+      "severity": "high",
+      "description": "Sincronização na nuvem - envia dados pessoais sem consentimento"
     }
   },
   "suspicious_patterns": [
@@ -97,6 +362,70 @@
     {
       "pattern": "com\\..*\\.app\\d+",
       "reason": "Nome de pacote genérico com número"
+    },
+    {
+      "pattern": ".*\\.admin\\..*",
+      "reason": "Pacote contém '.admin.' (pode ser admin abusivo)"
+    },
+    {
+      "pattern": ".*\\.accessibility\\..*",
+      "reason": "Pacote contém '.accessibility.' (pode ser serviço abusivo)"
+    },
+    {
+      "pattern": ".*\\.overlay\\..*",
+      "reason": "Pacote contém '.overlay.' (pode ser ataque de sobreposição)"
+    },
+    {
+      "pattern": ".*\\.keylogger\\..*",
+      "reason": "Pacote contém '.keylogger.' (captura de teclas)"
+    },
+    {
+      "pattern": ".*\\.spy\\..*",
+      "reason": "Pacote contém '.spy.' (espionagem)"
+    },
+    {
+      "pattern": ".*\\.steal\\..*",
+      "reason": "Pacote contém '.steal.' (roubo de dados)"
+    },
+    {
+      "pattern": ".*\\.trojan\\..*",
+      "reason": "Pacote contém '.trojan.' (cavalo de troia)"
+    },
+    {
+      "pattern": ".*\\.rootkit\\..*",
+      "reason": "Pacote contém '.rootkit.' (ocultação de malware)"
+    },
+    {
+      "pattern": ".*\\.bank\\..*",
+      "reason": "Pacote contém '.bank.' (possível golpe bancário)"
+    },
+    {
+      "pattern": ".*\\.wallet\\..*",
+      "reason": "Pacote contém '.wallet.' (possível roubo de criptomoedas)"
+    },
+    {
+      "pattern": "com\\.android\\.\\w{8,}",
+      "reason": "Pacote finge ser do Android com nome aleatório longo"
+    },
+    {
+      "pattern": "com\\.google\\.\\w{8,}",
+      "reason": "Pacote finge ser do Google com nome aleatório longo"
+    },
+    {
+      "pattern": ".*\\.free\\.\\w+",
+      "reason": "Pacote com padrão '.free.' frequente em malware"
+    },
+    {
+      "pattern": ".*\\.pro\\.\\w+",
+      "reason": "Pacote com padrão '.pro.' frequente em malware"
+    },
+    {
+      "pattern": "[a-z]{15,}",
+      "reason": "Nome de pacote muito longo (possível malware)"
+    },
+    {
+      "pattern": ".*[0-9]{4,}.*",
+      "reason": "Nome de pacote com muitos números (possível malware)"
     }
   ]
 }

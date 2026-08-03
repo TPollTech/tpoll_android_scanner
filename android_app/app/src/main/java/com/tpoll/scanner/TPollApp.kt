@@ -12,6 +12,7 @@ import com.tpoll.scanner.data.AppDatabase
 import com.tpoll.scanner.notifications.NotificationHelper
 import com.tpoll.scanner.protection.LicenseValidator
 import com.tpoll.scanner.protection.PackageReceiver
+import com.tpoll.scanner.protection.SelfProtection
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.updater.RemoteConfig
 import com.tpoll.scanner.updater.UpdateChecker
@@ -30,6 +31,8 @@ class TPollApp : Application() {
         private set
     lateinit var ttsHelper: TtsHelper
         private set
+    lateinit var selfProtection: SelfProtection
+        private set
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -40,8 +43,10 @@ class TPollApp : Application() {
         notificationHelper = NotificationHelper(this)
         remoteConfig = RemoteConfig(this)
         ttsHelper = TtsHelper(this)
+        selfProtection = SelfProtection(this)
         LicenseValidator.checkAndStoreSignature(this)
         ShieldService.start(this)
+        selfProtection.enableProtection()
         UpdateChecker.init(this)
         registerPackageReceiver()
         checkForUpdatesBackground()

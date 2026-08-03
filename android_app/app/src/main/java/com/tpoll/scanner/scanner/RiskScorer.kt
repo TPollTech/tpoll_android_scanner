@@ -23,7 +23,20 @@ data class DangerousCombo(
 
 object RiskScorer {
 
-    fun scoreApp(finding: AppFinding, rules: ScoringRules): AppFinding {
+    private val TRUSTED_PACKAGES = setOf(
+        "com.tpoll.scanner",
+        "com.tpoll.scanner.pro",
+        "com.tpoll.scanner.free"
+    )
+
+    fun scoreApp(finding: AppFinding, rules: ScoringRules, selfPackage: String? = null): AppFinding {
+        if (selfPackage != null && finding.packageName == selfPackage) {
+            return finding.copy(score = 0, level = RiskLevel.LOW, reasons = listOf("Próprio app - ignorado"))
+        }
+        if (finding.packageName in TRUSTED_PACKAGES) {
+            return finding.copy(score = 0, level = RiskLevel.LOW, reasons = listOf("App confiável - ignorado"))
+        }
+
         var score = 0
         val reasons = mutableListOf<String>()
 

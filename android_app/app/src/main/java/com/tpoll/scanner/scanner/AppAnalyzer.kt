@@ -90,6 +90,7 @@ class AppAnalyzer(private val context: Context) {
 
     suspend fun analyzeAllPackages(
         thirdPartyOnly: Boolean = true,
+        selfPackage: String? = null,
         onProgress: (suspend (current: Int, total: Int, packageName: String) -> Unit)? = null
     ): List<AppFinding> {
         val rules = loadRules()
@@ -111,13 +112,14 @@ class AppAnalyzer(private val context: Context) {
 
         val total = filteredPackages.size
         val findings = mutableListOf<AppFinding>()
+        val effectiveSelfPackage = selfPackage ?: context.packageName
 
         for ((index, pkgInfo) in filteredPackages.withIndex()) {
             val packageName = pkgInfo.packageName
             onProgress?.invoke(index + 1, total, packageName)
 
             val finding = analyzePackage(pkgInfo, virusDb)
-            val scored = RiskScorer.scoreApp(finding, rules)
+            val scored = RiskScorer.scoreApp(finding, rules, effectiveSelfPackage)
             findings.add(scored)
         }
 
