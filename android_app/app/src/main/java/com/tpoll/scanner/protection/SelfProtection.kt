@@ -160,6 +160,7 @@ class SelfProtection(private val context: Context) {
         } catch (e: Exception) { }
     }
 
+    @Suppress("DEPRECATION")
     fun requestDisableDeviceAdmin() {
         try {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
@@ -178,6 +179,7 @@ class SelfProtection(private val context: Context) {
         } catch (e: Exception) { }
     }
 
+    @Suppress("DEPRECATION")
     fun isDeviceAdminActive(): Boolean {
         return try {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
