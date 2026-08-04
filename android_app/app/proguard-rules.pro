@@ -56,6 +56,10 @@
 -keep class com.tpoll.scanner.protection.ShieldService { *; }
 -keep class com.tpoll.scanner.protection.PackageReceiver { *; }
 
+# --- Updater (keep for Gson deserialization) ---
+-keep class com.tpoll.scanner.updater.UpdateInfo { *; }
+-keep class com.tpoll.scanner.updater.RemoteConfig { *; }
+
 # --- Remove logging in release ---
 -assumenosideeffects class android.util.Log {
     public static int v(...);
