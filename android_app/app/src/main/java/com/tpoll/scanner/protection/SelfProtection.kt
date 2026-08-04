@@ -160,13 +160,12 @@ class SelfProtection(private val context: Context) {
         } catch (e: Exception) { }
     }
 
-    @Suppress("DEPRECATION")
     fun requestDisableDeviceAdmin() {
         try {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val componentName = ComponentName(selfPackage, "${selfPackage}.protection.DeviceAdminReceiver")
 
-            if (dpm.isDeviceAdminActive(componentName)) {
+            if (isAdminActive(dpm, componentName)) {
                 val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
                     putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, componentName)
                     putExtra(
@@ -179,13 +178,17 @@ class SelfProtection(private val context: Context) {
         } catch (e: Exception) { }
     }
 
-    @Suppress("DEPRECATION")
     fun isDeviceAdminActive(): Boolean {
         return try {
             val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
             val componentName = ComponentName(selfPackage, "${selfPackage}.protection.DeviceAdminReceiver")
-            dpm.isDeviceAdminActive(componentName)
+            isAdminActive(dpm, componentName)
         } catch (e: Exception) { false }
+    }
+
+    private fun isAdminActive(dpm: DevicePolicyManager, componentName: ComponentName): Boolean {
+        val activeAdmins = dpm.activeAdmins ?: return false
+        return activeAdmins.any { it == componentName }
     }
 
     fun protectAgainstUninstall() {
