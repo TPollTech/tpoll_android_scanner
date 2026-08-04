@@ -74,6 +74,9 @@ import com.tpoll.scanner.ui.theme.ShieldDangerColor
 import com.tpoll.scanner.ui.theme.ShieldWarningColor
 import com.tpoll.scanner.ui.theme.StatusActive
 import com.tpoll.scanner.ui.theme.StatusInactive
+import com.tpoll.scanner.updater.UpdateChecker
+import com.tpoll.scanner.updater.UpdateDialog
+import com.tpoll.scanner.updater.UpdateResult
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -105,6 +108,7 @@ fun DashboardScreen(
     var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("threat_count", 0)) }
     var malwareCount by remember { mutableStateOf(protectionPrefs.getInt("malware_count", 0)) }
     var isShieldScanning by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
     var quarantineCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
@@ -114,6 +118,16 @@ fun DashboardScreen(
             shieldActive = ShieldService.isRunning()
             shieldThreats = protectionPrefs.getInt("threat_count", 0)
             malwareCount = protectionPrefs.getInt("malware_count", 0)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        val checker = UpdateChecker()
+        if (UpdateChecker.shouldCheck(context)) {
+            val result = checker.checkForUpdatesWithRetry(context)
+            if (result is UpdateResult.Available) {
+                showUpdateDialog = true
+            }
         }
     }
 
@@ -373,6 +387,10 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showUpdateDialog) {
+        UpdateDialog(onDismiss = { showUpdateDialog = false })
     }
 }
 
