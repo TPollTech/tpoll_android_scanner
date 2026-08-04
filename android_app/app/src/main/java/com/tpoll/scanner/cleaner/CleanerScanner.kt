@@ -12,6 +12,7 @@ import android.os.Build
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.security.MessageDigest
 import java.text.Normalizer
 import java.util.Locale
@@ -34,12 +35,17 @@ class CleanerScanner(private val context: Context) {
         val apkFiles = items.filter { it.category == CleanerCategory.APK }
         val oldDownloads = items.filter { it.isOldDownload }
 
+        val cacheItems = scanCacheFolders()
+        val tempItems = scanTempFiles()
+
         val duplicateRecoverable = exactDuplicateGroups.sumOf { it.recoverableBytes } +
             duplicateGroups.sumOf { it.recoverableBytes } +
             similarPhotoGroups.sumOf { it.recoverableBytes }
         val largeRecoverable = largeFiles.take(20).sumOf { it.sizeBytes }
         val oldDownloadRecoverable = oldDownloads.sumOf { it.sizeBytes }
         val apkRecoverable = apkFiles.sumOf { it.sizeBytes }
+        val cacheRecoverable = cacheItems.sumOf { it.sizeBytes }
+        val tempRecoverable = tempItems.sumOf { it.sizeBytes }
 
         val whatsappBuckets = listOf(
             CleanerBucket("Fotos do WhatsApp", whatsappItems.filter { it.category == CleanerCategory.IMAGE }),
@@ -71,8 +77,155 @@ class CleanerScanner(private val context: Context) {
             oldDownloadCount = oldDownloads.size,
             oldDownloadSizeBytes = oldDownloadRecoverable,
             apkFiles = apkFiles.sortedByDescending { it.sizeBytes }.take(80),
-            recoverableBytesEstimate = duplicateRecoverable + oldDownloadRecoverable + apkRecoverable + largeRecoverable
+            cacheItems = cacheItems,
+            cacheSizeBytes = cacheRecoverable,
+            tempItems = tempItems,
+            tempSizeBytes = tempRecoverable,
+            recoverableBytesEstimate = duplicateRecoverable + oldDownloadRecoverable + apkRecoverable + largeRecoverable + cacheRecoverable + tempRecoverable
         )
+    }
+
+    private fun scanCacheFolders(): List<CleanerCacheItem> {
+        val items = mutableListOf<CleanerCacheItem>()
+
+        val internalCache = context.cacheDir
+        if (internalCache != null && internalCache.exists()) {
+            val size = calculateDirSize(internalCache)
+            if (size > 0) {
+                items.add(CleanerCacheItem(
+                    path = internalCache.absolutePath,
+                    label = "Cache interno do app",
+                    sizeBytes = size,
+                    type = CacheType.INTERNAL
+                ))
+            }
+        }
+
+        val externalCache = context.externalCacheDir
+        if (externalCache != null && externalCache.exists()) {
+            val size = calculateDirSize(externalCache)
+            if (size > 0) {
+                items.add(CleanerCacheItem(
+                    path = externalCache.absolutePath,
+                    label = "Cache externo do app",
+                    sizeBytes = size,
+                    type = CacheType.EXTERNAL
+                ))
+            }
+        }
+
+        val codeCache = File(context.applicationInfo.dataDir, "code_cache")
+        if (codeCache.exists()) {
+            val size = calculateDirSize(codeCache)
+            if (size > 0) {
+                items.add(CleanerCacheItem(
+                    path = codeCache.absolutePath,
+                    label = "Cache de código",
+                    sizeBytes = size,
+                    type = CacheType.CODE
+                ))
+            }
+        }
+
+        return items.sortedByDescending { it.sizeBytes }
+    }
+
+    private fun scanTempFiles(): List<CleanerCacheItem> {
+        val items = mutableListOf<CleanerCacheItem>()
+
+        val tmpExtensions = setOf(".tmp", ".temp", ".log", ".backup", ".bak", ".old", ".dmp")
+        val tmpPrefixes = setOf("tmp_", "temp_", "cache_", "backup_")
+
+        val dirs = listOfNotNull(
+            context.cacheDir,
+            context.externalCacheDir,
+            context.filesDir,
+            context.getExternalFilesDir(null)
+        )
+
+        for (dir in dirs) {
+            if (dir == null || !dir.exists()) continue
+            findTempFiles(dir, tmpExtensions, tmpPrefixes, items, maxDepth = 4)
+        }
+
+        return items.sortedByDescending { it.sizeBytes }
+    }
+
+    private fun findTempFiles(
+        dir: File,
+        extensions: Set<String>,
+        prefixes: Set<String>,
+        result: MutableList<CleanerCacheItem>,
+        maxDepth: Int,
+        currentDepth: Int = 0
+    ) {
+        if (currentDepth > maxDepth) return
+        val files = dir.listFiles() ?: return
+
+        var tempSize = 0L
+        var tempCount = 0
+
+        for (file in files) {
+            if (file.isFile) {
+                val lower = file.name.lowercase(Locale.ROOT)
+                if (extensions.any { lower.endsWith(it) } || prefixes.any { lower.startsWith(it) }) {
+                    tempSize += file.length()
+                    tempCount++
+                }
+            } else if (file.isDirectory) {
+                findTempFiles(file, extensions, prefixes, result, maxDepth, currentDepth + 1)
+            }
+        }
+
+        if (tempSize > 0) {
+            result.add(CleanerCacheItem(
+                path = dir.absolutePath,
+                label = "Arquivos temporários (${tempCount} arquivos)",
+                sizeBytes = tempSize,
+                type = CacheType.TEMP
+            ))
+        }
+    }
+
+    private fun calculateDirSize(dir: File): Long {
+        if (!dir.exists()) return 0L
+        var size = 0L
+        try {
+            val files = dir.listFiles() ?: return 0L
+            for (file in files) {
+                if (file.isFile) {
+                    size += file.length()
+                } else if (file.isDirectory) {
+                    size += calculateDirSize(file)
+                }
+            }
+        } catch (_: Exception) { }
+        return size
+    }
+
+    fun clearCacheFolder(item: CleanerCacheItem): Boolean {
+        return try {
+            val dir = File(item.path)
+            if (dir.exists() && dir.isDirectory) {
+                deleteRecursive(dir)
+                true
+            } else false
+        } catch (_: Exception) { false }
+    }
+
+    fun clearAllCache(items: List<CleanerCacheItem>): Int {
+        var cleared = 0
+        for (item in items) {
+            if (clearCacheFolder(item)) cleared++
+        }
+        return cleared
+    }
+
+    private fun deleteRecursive(file: File): Boolean {
+        if (file.isDirectory) {
+            file.listFiles()?.forEach { deleteRecursive(it) }
+        }
+        return file.delete()
     }
 
     private fun queryFiles(): List<CleanerFileItem> {
@@ -349,10 +502,17 @@ data class CleanerReport(
     val oldDownloadCount: Int,
     val oldDownloadSizeBytes: Long,
     val apkFiles: List<CleanerFileItem>,
+    val cacheItems: List<CleanerCacheItem> = emptyList(),
+    val cacheSizeBytes: Long = 0L,
+    val tempItems: List<CleanerCacheItem> = emptyList(),
+    val tempSizeBytes: Long = 0L,
     val recoverableBytesEstimate: Long
 ) {
     val allDuplicateGroups: List<DuplicateGroup>
         get() = exactDuplicateGroups + duplicateGroups + similarPhotoGroups
+
+    val totalCacheSize: Long
+        get() = cacheSizeBytes + tempSizeBytes
 }
 
 data class CleanerBucket(
@@ -415,6 +575,20 @@ enum class CleanerCategory(val label: String) {
     DOCUMENT("Documentos"),
     APK("APKs"),
     OTHER("Outros")
+}
+
+data class CleanerCacheItem(
+    val path: String,
+    val label: String,
+    val sizeBytes: Long,
+    val type: CacheType
+)
+
+enum class CacheType(val label: String) {
+    INTERNAL("Cache interno"),
+    EXTERNAL("Cache externo"),
+    CODE("Cache de código"),
+    TEMP("Arquivos temporários")
 }
 
 fun formatCleanerBytes(bytes: Long): String {

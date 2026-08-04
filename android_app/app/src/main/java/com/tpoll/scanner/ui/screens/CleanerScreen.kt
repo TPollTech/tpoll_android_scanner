@@ -73,6 +73,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.tpoll.scanner.cleaner.CleanerBucket
+import com.tpoll.scanner.cleaner.CleanerCacheItem
 import com.tpoll.scanner.cleaner.CleanerFileItem
 import com.tpoll.scanner.cleaner.CleanerReport
 import com.tpoll.scanner.cleaner.CleanerScanner
@@ -257,6 +258,52 @@ fun CleanerScreen(modifier: Modifier = Modifier) {
                 }
             }
 
+            val allCacheItems = currentReport.cacheItems + currentReport.tempItems
+            if (allCacheItems.isNotEmpty()) {
+                item { SectionTitle("Cache e arquivos temporários") }
+                items(allCacheItems) { cacheItem ->
+                    CacheItemCard(cacheItem, onClean = {
+                        scope.launch {
+                            val scanner = CleanerScanner(context)
+                            val cleared = scanner.clearAllCache(listOf(cacheItem))
+                            if (cleared > 0) {
+                                successMessage = "Cache limpo: ${formatCleanerBytes(cacheItem.sizeBytes)} liberados."
+                                isScanning = true
+                                report = runCleanerScan(context) { errorMessage = it }
+                                isScanning = false
+                            } else {
+                                errorMessage = "Não foi possível limpar este cache."
+                            }
+                        }
+                    })
+                }
+
+                item {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                val scanner = CleanerScanner(context)
+                                val totalSize = allCacheItems.sumOf { it.sizeBytes }
+                                val cleared = scanner.clearAllCache(allCacheItems)
+                                if (cleared > 0) {
+                                    successMessage = "Todo o cache foi limpo: ${formatCleanerBytes(totalSize)} liberados."
+                                    isScanning = true
+                                    report = runCleanerScan(context) { errorMessage = it }
+                                    isScanning = false
+                                } else {
+                                    errorMessage = "Não foi possível limpar o cache."
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CleaningServices, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Limpar todo o cache (${formatCleanerBytes(currentReport.totalCacheSize)})")
+                    }
+                }
+            }
+
             item {
                 WarningCard(
                     title = "Limpeza segura",
@@ -403,7 +450,7 @@ private fun SummaryGrid(report: CleanerReport) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(Modifier.weight(1f), Icons.Default.ContentCopy, "Duplicados", report.allDuplicateGroups.size.toString(), MaterialTheme.colorScheme.primary)
-            MetricCard(Modifier.weight(1f), Icons.Default.PhoneAndroid, "WhatsApp", formatCleanerBytes(report.whatsappSizeBytes), HighRiskColor)
+            MetricCard(Modifier.weight(1f), Icons.Default.CleaningServices, "Cache", formatCleanerBytes(report.totalCacheSize), HighRiskColor)
         }
     }
 }
@@ -414,6 +461,8 @@ private fun CleanerOpportunityList(report: CleanerReport) {
         OpportunityRow(Icons.Default.Verified, "Duplicados confirmados", "${report.exactDuplicateGroups.size} grupos por hash", formatCleanerBytes(report.exactDuplicateGroups.sumOf { it.recoverableBytes }), LowRiskColor)
         OpportunityRow(Icons.Default.ContentCopy, "Duplicados prováveis", "${report.duplicateGroups.size} grupos por nome/tamanho", formatCleanerBytes(report.duplicateGroups.sumOf { it.recoverableBytes }), MaterialTheme.colorScheme.primary)
         OpportunityRow(Icons.Default.Image, "Fotos parecidas", "${report.similarPhotoGroups.size} grupos para revisar", formatCleanerBytes(report.similarPhotoGroups.sumOf { it.recoverableBytes }), MediumRiskColor)
+        OpportunityRow(Icons.Default.CleaningServices, "Cache do app", "${report.cacheItems.size} pastas de cache", formatCleanerBytes(report.cacheSizeBytes), HighRiskColor)
+        OpportunityRow(Icons.Default.InsertDriveFile, "Arquivos temporários", "${report.tempItems.size} pastas temporárias", formatCleanerBytes(report.tempSizeBytes), MediumRiskColor)
         OpportunityRow(Icons.Default.VideoLibrary, "Arquivos grandes", "${report.largeFiles.size} arquivos acima de 100 MB", formatCleanerBytes(report.largeFiles.sumOf { it.sizeBytes }), HighRiskColor)
         OpportunityRow(Icons.Default.PhoneAndroid, "WhatsApp Cleaner", "${report.whatsappCount} mídias/arquivos encontrados", formatCleanerBytes(report.whatsappSizeBytes), LowRiskColor)
         OpportunityRow(Icons.Default.PhotoCamera, "Prints", "${report.screenshotCount} capturas de tela", formatCleanerBytes(report.screenshotSizeBytes), MediumRiskColor)
@@ -527,6 +576,35 @@ private fun LargeFileCard(file: CleanerFileItem, onTrash: () -> Unit) {
                 Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Mover para lixeira")
+            }
+        }
+    }
+}
+
+@Composable
+private fun CacheItemCard(cacheItem: CleanerCacheItem, onClean: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                Icons.Default.CleaningServices,
+                contentDescription = null,
+                tint = MediumRiskColor,
+                modifier = Modifier.size(28.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(cacheItem.label, fontWeight = FontWeight.Bold)
+                Text(
+                    "${cacheItem.type.label} • ${formatCleanerBytes(cacheItem.sizeBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            OutlinedButton(onClick = onClean) {
+                Text("Limpar")
             }
         }
     }

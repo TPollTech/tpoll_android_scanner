@@ -80,7 +80,6 @@ import com.tpoll.scanner.ui.screens.HistoryScreen
 import com.tpoll.scanner.ui.screens.PermissionScreen
 import com.tpoll.scanner.ui.screens.PremiumScreen
 import com.tpoll.scanner.ui.screens.QuarantineScreen
-import com.tpoll.scanner.ui.screens.ScamDetectorScreen
 import com.tpoll.scanner.ui.screens.SettingsScreen
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
 
@@ -264,7 +263,6 @@ class MainActivity : ComponentActivity() {
 enum class Screen(val route: String, val label: String, val title: String, val icon: ImageVector) {
     Dashboard("dashboard", "Início", "TPoll Scanner", Icons.Default.Home),
     Cleaner("cleaner", "Limpeza", "Limpeza inteligente", Icons.Default.CleaningServices),
-    Scams("scams", "Golpes", "Detector de golpes", Icons.Default.Warning),
     History("history", "Histórico", "Histórico", Icons.Default.History),
     Health("health", "Saúde", "Saúde do dispositivo", Icons.Default.Favorite),
     Premium("premium", "Premium", "TPoll Premium", Icons.Default.Star),
@@ -401,7 +399,6 @@ fun MainScreen(onSignOut: () -> Unit = {}) {
                     onNavigateToPermissions = { showPermissions = true }
                 )
                 Screen.Cleaner -> CleanerScreen()
-                Screen.Scams -> ScamDetectorScreen()
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()
                 Screen.Premium -> PremiumScreen()

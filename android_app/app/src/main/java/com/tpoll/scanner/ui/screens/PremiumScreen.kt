@@ -52,7 +52,6 @@ fun PremiumScreen(modifier: Modifier = Modifier) {
     val benefits = listOf(
         PremiumBenefit(Icons.Default.Security, "Proteção avançada", "Análises completas de apps, APKs e permissões sensíveis.", HighRiskColor),
         PremiumBenefit(Icons.Default.CleaningServices, "Limpeza inteligente", "Duplicados confirmados, fotos parecidas, WhatsApp Cleaner e arquivos grandes.", LowRiskColor),
-        PremiumBenefit(Icons.Default.Warning, "Detector de golpes", "Análise de mensagens, links, Pix, falsa premiação e pedidos de senha.", MediumRiskColor),
         PremiumBenefit(Icons.Default.AutoAwesome, "Histórico e relatórios", "Acompanhe análises, limpezas e alertas importantes em um só lugar.", MaterialTheme.colorScheme.primary)
     )
 
