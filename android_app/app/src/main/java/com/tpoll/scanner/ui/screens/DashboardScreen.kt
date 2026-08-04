@@ -123,11 +123,9 @@ fun DashboardScreen(
 
     LaunchedEffect(Unit) {
         val checker = UpdateChecker()
-        if (UpdateChecker.shouldCheck(context)) {
-            val result = checker.checkForUpdatesWithRetry(context)
-            if (result is UpdateResult.Available) {
-                showUpdateDialog = true
-            }
+        val result = checker.checkForUpdatesWithRetry(context)
+        if (result is UpdateResult.Available) {
+            showUpdateDialog = true
         }
     }
 

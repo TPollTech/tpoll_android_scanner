@@ -1,7 +1,7 @@
 {
-  "version_code": 13,
-  "version_name": "1.8.0",
-  "changelog": "Novidades da v1.8.0:\n\n- Novo visual mais moderno e consistente\n- Painel inicial compacto, sem logo gigante ocupando espaço\n- Cards reorganizados para mostrar proteção, privacidade, saúde e resultados\n- Navegação inferior com rolagem horizontal para não apertar as abas\n- Tela Premium redesenhada sem valores internos ou textos de planejamento\n- Integração preparada para pagamento via Mercado Pago\n- Nova paleta visual clara e escura da TPollTech\n- Melhorias de leitura, espaçamento e usabilidade em telas menores\n- Versão preparada para distribuição pelo site oficial",
+  "version_code": 14,
+  "version_name": "1.8.1",
+  "changelog": "Correções da v1.8.1:\n\n- Corrigida detecção de atualizações automáticas\n- Versão agora é incrementada automaticamente a cada push\n- Melhorias na proteção do app contra desinstalação",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
   "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
   "min_version_code": 1

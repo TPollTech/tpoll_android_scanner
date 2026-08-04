@@ -16,6 +16,8 @@ on:
       - 'TPollScanner-release.apk'
       - 'BUILD_FAILURE.txt'
       - '**/*.md'
+      - 'update.json'
+      - 'android_app/app/build.gradle.kts'
 
 permissions:
   contents: write
@@ -73,19 +75,31 @@ jobs:
       - name: Auto-increment version
         if: github.event_name == 'push'
         run: |
-          # Read current version_code from update.json
-          CURRENT_VERSION=$(python3 -c "import json; print(json.load(open('update.json'))['version_code'])")
+          # Read current version_code from build.gradle.kts (source of truth)
+          CURRENT_VERSION=$(grep -oP 'versionCode = \K[0-9]+' android_app/app/build.gradle.kts)
           NEW_VERSION=$((CURRENT_VERSION + 1))
-          
-          # Generate new version name (major.minor.patch)
-          MAJOR=$((NEW_VERSION / 100))
-          MINOR=$(((NEW_VERSION % 100) / 10))
-          PATCH=$((NEW_VERSION % 10))
-          NEW_VERSION_NAME="${MAJOR}.${MINOR}.${PATCH}"
-          
-          echo "Current version: $CURRENT_VERSION"
+
+          # Read current version_name base from build.gradle.kts
+          CURRENT_NAME=$(grep -oP 'versionName = "\K[^"]+' android_app/app/build.gradle.kts)
+          # Increment patch number: e.g. 1.8.0 -> 1.8.1
+          NEW_VERSION_NAME=$(python3 -c "
+          parts = '$CURRENT_NAME'.split('.')
+          if len(parts) == 3:
+              parts[2] = str(int(parts[2]) + 1)
+          elif len(parts) == 2:
+              parts.append('1')
+          else:
+              parts = ['1', '0', '1']
+          print('.'.join(parts))
+          ")
+
+          echo "Current version: $CURRENT_VERSION ($CURRENT_NAME)"
           echo "New version: $NEW_VERSION ($NEW_VERSION_NAME)"
-          
+
+          # Update build.gradle.kts versionCode and versionName
+          sed -i "s/versionCode = [0-9]*/versionCode = $NEW_VERSION/" android_app/app/build.gradle.kts
+          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$NEW_VERSION_NAME\"/" android_app/app/build.gradle.kts
+
           # Update update.json
           python3 -c "
           import json
@@ -96,11 +110,7 @@ jobs:
           with open('update.json', 'w') as f:
               json.dump(data, f, indent=2, ensure_ascii=False)
           "
-          
-          # Update build.gradle.kts versionCode and versionName
-          sed -i "s/versionCode = [0-9]*/versionCode = $NEW_VERSION/" android_app/app/build.gradle.kts
-          sed -i "s/versionName = \"[^\"]*\"/versionName = \"$NEW_VERSION_NAME\"/" android_app/app/build.gradle.kts
-          
+
           echo "VERSION_CODE=$NEW_VERSION" >> $GITHUB_ENV
           echo "VERSION_NAME=$NEW_VERSION_NAME" >> $GITHUB_ENV
 
