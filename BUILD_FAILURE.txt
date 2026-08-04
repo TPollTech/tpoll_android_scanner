@@ -1,4 +1,4 @@
-Build APK failed at 2026-08-04 00:05:09 UTC
+Build APK failed at 2026-08-04 00:43:25 UTC
 
 Downloading https://services.gradle.org/distributions/gradle-8.7-bin.zip
 ............10%.............20%.............30%.............40%............50%.............60%.............70%.............80%.............90%............100%
@@ -36,19 +36,19 @@ Where: sdk.dir property in local.properties file. Problem: Directory does not ex
 > Task :app:javaPreCompileRelease
 > Task :app:extractProguardFiles
 > Task :app:mergeReleaseJniLibFolders
-> Task :app:processReleaseResources
 > Task :app:mergeReleaseNativeLibs
+> Task :app:processReleaseResources
+> Task :app:checkReleaseDuplicateClasses
 
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libdatastore_shared_counter.so.
 
-> Task :app:checkReleaseDuplicateClasses
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:mergeReleaseArtProfile
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:mergeReleaseStartupProfile
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:compileReleaseShaders NO-SOURCE
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
 > Task :app:mergeReleaseAssets
 > Task :app:compressReleaseAssets
@@ -79,5 +79,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 8s
+BUILD FAILED in 1m 54s
 38 actionable tasks: 37 executed, 1 up-to-date
