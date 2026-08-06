@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +18,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tpoll.scanner.ui.theme.LowRiskColor
+import kotlinx.coroutines.launch
 @Composable
 fun UpdateDialog(
     onDismiss: () -> Unit
@@ -24,6 +27,10 @@ fun UpdateDialog(
     val context = LocalContext.current
     var result by remember { mutableStateOf<UpdateResult?>(null) }
     var isChecking by remember { mutableStateOf(true) }
+    var isInstalling by remember { mutableStateOf(false) }
+    var installError by remember { mutableStateOf<String?>(null) }
+    var installSuccess by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val checker = remember { UpdateChecker() }
 
     LaunchedEffect(Unit) {
@@ -32,7 +39,7 @@ fun UpdateDialog(
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isInstalling) onDismiss() },
         icon = {
             Icon(
                 Icons.Default.NewReleases,
@@ -43,6 +50,8 @@ fun UpdateDialog(
         title = {
             Text(
                 text = when {
+                    isInstalling -> "Instalando..."
+                    installSuccess -> "Instalado!"
                     isChecking -> "Verificando..."
                     result is UpdateResult.Available -> "Nova versão disponível!"
                     result is UpdateResult.UpToDate -> "App atualizado"
@@ -54,6 +63,55 @@ fun UpdateDialog(
         },
         text = {
             when {
+                isInstalling -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Baixando e instalando nova versão...")
+                    }
+                }
+                installSuccess -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = LowRiskColor,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Nova versão instalada com sucesso!", fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Reabra o app para usar a versão mais recente.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                !installError.isNullOrBlank() -> {
+                    Column {
+                        Text("Erro na instalação")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = installError.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            "Se o erro persistir, desinstale o app e instale o APK manualmente.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                }
                 isChecking -> {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -114,19 +172,49 @@ fun UpdateDialog(
             }
         },
         confirmButton = {
-            if (result is UpdateResult.Available) {
-                val info = (result as UpdateResult.Available).info
-                Button(onClick = {
-                    val url = info.apk_url.ifEmpty { info.download_url }
-                    checker.openDownloadUrl(context, url)
-                }) {
-                    Text("Baixar APK")
+            when {
+                result is UpdateResult.Available && !isInstalling && installError.isNullOrBlank() && !installSuccess -> {
+                    val info = (result as UpdateResult.Available).info
+                    Button(onClick = {
+                        isInstalling = true
+                        installError = null
+                        installSuccess = false
+                        scope.launch {
+                            ApkInstaller.downloadAndInstall(
+                                context = context,
+                                apkUrl = info.apk_url.ifEmpty { info.download_url },
+                                onStarted = {},
+                                onSuccess = {
+                                    isInstalling = false
+                                    installSuccess = true
+                                },
+                                onError = { error ->
+                                    isInstalling = false
+                                    installError = error
+                                }
+                            )
+                        }
+                    }) {
+                        Text("Atualizar agora")
+                    }
+                }
+                installSuccess -> {
+                    Button(onClick = onDismiss) {
+                        Text("OK")
+                    }
                 }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (result is UpdateResult.Available) "Agora não" else "Fechar")
+            if (!isInstalling) {
+                TextButton(onClick = onDismiss) {
+                    Text(
+                        when {
+                            result is UpdateResult.Available && installError.isNullOrBlank() && !installSuccess -> "Agora não"
+                            else -> "Fechar"
+                        }
+                    )
+                }
             }
         }
     )
