@@ -123,8 +123,10 @@ fun DashboardScreen(
 
     LaunchedEffect(Unit) {
         val checker = UpdateChecker()
+        val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+        val lastSeenVersion = prefs.getInt("last_seen_version_code", 0)
         val result = checker.checkForUpdatesWithRetry(context)
-        if (result is UpdateResult.Available) {
+        if (result is UpdateResult.Available && result.info.version_code > lastSeenVersion) {
             showUpdateDialog = true
         }
     }
@@ -388,7 +390,15 @@ fun DashboardScreen(
     }
 
     if (showUpdateDialog) {
-        UpdateDialog(onDismiss = { showUpdateDialog = false })
+        UpdateDialog(onDismiss = { seenVersionCode ->
+            showUpdateDialog = false
+            if (seenVersionCode > 0) {
+                context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("last_seen_version_code", seenVersionCode)
+                    .apply()
+            }
+        })
     }
 }
 

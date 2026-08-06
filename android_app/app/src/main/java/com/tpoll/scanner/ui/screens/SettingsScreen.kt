@@ -45,7 +45,15 @@ fun SettingsScreen(
     var showUpdateDialog by remember { mutableStateOf(false) }
 
     if (showUpdateDialog) {
-        UpdateDialog(onDismiss = { showUpdateDialog = false })
+        UpdateDialog(onDismiss = { seenVersionCode ->
+            showUpdateDialog = false
+            if (seenVersionCode > 0) {
+                context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putInt("last_seen_version_code", seenVersionCode)
+                    .apply()
+            }
+        })
     }
 
     Column(

@@ -22,7 +22,7 @@ import com.tpoll.scanner.ui.theme.LowRiskColor
 import kotlinx.coroutines.launch
 @Composable
 fun UpdateDialog(
-    onDismiss: () -> Unit
+    onDismiss: (seenVersionCode: Int) -> Unit
 ) {
     val context = LocalContext.current
     var result by remember { mutableStateOf<UpdateResult?>(null) }
@@ -38,8 +38,13 @@ fun UpdateDialog(
         isChecking = false
     }
 
+    fun dismissWithVersion() {
+        val versionCode = (result as? UpdateResult.Available)?.info?.version_code ?: 0
+        onDismiss(versionCode)
+    }
+
     AlertDialog(
-        onDismissRequest = { if (!isInstalling) onDismiss() },
+        onDismissRequest = { if (!isInstalling) dismissWithVersion() },
         icon = {
             Icon(
                 Icons.Default.NewReleases,
@@ -199,7 +204,7 @@ fun UpdateDialog(
                     }
                 }
                 installSuccess -> {
-                    Button(onClick = onDismiss) {
+                    Button(onClick = { dismissWithVersion() }) {
                         Text("OK")
                     }
                 }
@@ -207,7 +212,7 @@ fun UpdateDialog(
         },
         dismissButton = {
             if (!isInstalling) {
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = { dismissWithVersion() }) {
                     Text(
                         when {
                             result is UpdateResult.Available && installError.isNullOrBlank() && !installSuccess -> "Agora não"
