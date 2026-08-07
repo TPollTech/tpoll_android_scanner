@@ -22,8 +22,8 @@ android {
         applicationId = "com.tpoll.scanner"
         minSdk = 26
         targetSdk = 34
-        versionCode = 18
-        versionName = "1.8.5"
+        versionCode = 19
+        versionName = "1.8.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
