@@ -38,6 +38,11 @@
         .nav-links a:hover::after { width: 100%; }
         .btn-download { padding: 0.5rem 1.2rem; background: var(--gradient); border: none; border-radius: 8px; color: #fff; font-weight: 700; font-size: 0.8rem; cursor: pointer; text-decoration: none; transition: transform 0.2s, box-shadow 0.3s; }
         .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0, 240, 255, 0.3); }
+        .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 4px; z-index: 110; }
+        .hamburger span { width: 22px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.3s; }
+        .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+        .hamburger.active span:nth-child(2) { opacity: 0; }
+        .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
         .hero { position: relative; z-index: 2; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 2rem; }
         .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.4rem 1rem; border: 1px solid var(--border); border-radius: 100px; font-size: 0.75rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; margin-bottom: 2rem; backdrop-filter: blur(10px); background: rgba(0, 240, 255, 0.03); opacity: 0; animation: fadeUp 0.8s 0.2s forwards; }
@@ -124,9 +129,44 @@
         @keyframes scanline { 0% { top: -100%; } 100% { top: 200%; } }
 
         @media (max-width: 768px) {
-            .nav-links { display: none; }
+            .hamburger { display: flex; }
+            .nav-links {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(5, 5, 10, 0.97);
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 2.5rem;
+                z-index: 105;
+                backdrop-filter: blur(20px);
+            }
+            .nav-links.open { display: flex; }
+            .nav-links a { font-size: 1.2rem; }
+            .btn-download { display: none; }
+            .hero h1 { font-size: clamp(1.8rem, 7vw, 3rem); }
+            .hero p { font-size: 1rem; }
+            .hero-buttons { flex-direction: column; width: 100%; max-width: 320px; margin: 0 auto; }
+            .hero-buttons a, .hero-buttons .btn-primary, .hero-buttons .btn-secondary { width: 100%; justify-content: center; }
+            .terminal { max-width: 100%; margin: 2rem 0.5rem 0; }
+            .terminal-body { font-size: 0.72rem; padding: 0.8rem; }
+            .features { padding: 4rem 1rem; }
             .features-grid { grid-template-columns: 1fr; }
+            .how-it-works { padding: 4rem 1rem; }
             .step { flex-direction: column; gap: 1rem; }
+            .risk-section { padding: 4rem 1rem; }
+            .risk-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .risk-table { min-width: 500px; }
+            .cta { padding: 4rem 1rem; }
+            .cta-box { padding: 2.5rem 1.5rem; }
+            .cta-box h2 { font-size: 1.6rem; }
+            .cta-box .btn-primary { width: 100%; justify-content: center; }
+            .stat { padding: 2rem 1rem; }
+            .stat-number { font-size: 2rem; }
         }
     </style>
 </head>
@@ -148,6 +188,9 @@
             <li><a href="#risk">Níveis de risco</a></li>
         </ul>
         <a href="TPollScanner-release.apk" class="btn-download" download>⬇ Download APK</a>
+        <button class="hamburger" id="hamburger" aria-label="Menu">
+            <span></span><span></span><span></span>
+        </button>
     </nav>
 
     <section class="hero">
@@ -271,6 +314,7 @@
         <span class="section-label">// Classificação</span>
         <h2 class="section-title">Níveis de risco</h2>
         <p class="section-desc">Cada app recebe um score baseado em múltiplos fatores. Quanto maior o score, mais perigoso.</p>
+        <div class="risk-table-wrapper">
         <table class="risk-table">
             <thead>
                 <tr><th>Nível</th><th>Score</th><th>Ação</th><th>Exemplo</th></tr>
@@ -296,6 +340,7 @@
                 </tr>
             </tbody>
         </table>
+        </div>
     </section>
 
     <section class="cta">
@@ -316,6 +361,7 @@
     const ctx = canvas.getContext('2d');
     let particles = [];
     let mouse = { x: 0, y: 0 };
+    const isMobile = window.innerWidth <= 768;
 
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     resize();
@@ -344,9 +390,10 @@
         draw() { ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fillStyle = `rgba(${this.color}, ${this.opacity})`; ctx.fill(); }
     }
 
-    for (let i = 0; i < 120; i++) particles.push(new Particle());
+    for (let i = 0; i < (isMobile ? 30 : 120); i++) particles.push(new Particle());
 
     function drawLines() {
+        if (isMobile) return;
         for (let i = 0; i < particles.length; i++) {
             for (let j = i + 1; j < particles.length; j++) {
                 const dx = particles[i].x - particles[j].x;
@@ -364,10 +411,16 @@
     animateParticles();
 
     const glow = document.getElementById('cursor-glow');
-    document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px'; });
+    if (isMobile) { glow.style.display = 'none'; }
+    document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; if (!isMobile) { glow.style.left = e.clientX + 'px'; glow.style.top = e.clientY + 'px'; } });
 
     const nav = document.getElementById('navbar');
     window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 50); });
+
+    const hamburger = document.getElementById('hamburger');
+    const navLinks = document.querySelector('.nav-links');
+    hamburger.addEventListener('click', () => { hamburger.classList.toggle('active'); navLinks.classList.toggle('open'); });
+    navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => { hamburger.classList.remove('active'); navLinks.classList.remove('open'); }));
 
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -435,6 +488,7 @@
     terminalObserver.observe(document.getElementById('terminal'));
 
     document.querySelectorAll('.feature-card').forEach(card => {
+        if (isMobile) return;
         card.addEventListener('mousemove', e => {
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left; const y = e.clientY - rect.top;
@@ -445,7 +499,7 @@
     });
 
     const heroH1 = document.querySelector('.hero h1');
-    setInterval(() => { if (Math.random() > 0.95) { heroH1.style.textShadow = '2px 0 #ff2d7b, -2px 0 #00f0ff'; setTimeout(() => { heroH1.style.textShadow = 'none'; }, 100); } }, 200);
+    if (!isMobile) { setInterval(() => { if (Math.random() > 0.95) { heroH1.style.textShadow = '2px 0 #ff2d7b, -2px 0 #00f0ff'; setTimeout(() => { heroH1.style.textShadow = 'none'; }, 100); } }, 200); }
     </script>
 </body>
 </html>
