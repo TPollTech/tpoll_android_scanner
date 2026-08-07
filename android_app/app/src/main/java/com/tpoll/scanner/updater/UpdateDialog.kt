@@ -4,6 +4,8 @@
 // sem autorização expressa por escrito do titular dos direitos autorais.
 package com.tpoll.scanner.updater
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -102,7 +104,7 @@ fun UpdateDialog(
                 }
                 !installError.isNullOrBlank() -> {
                     Column {
-                        Text("Erro na instalação")
+                        Text("Erro na instalação", fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = installError.orEmpty(),
@@ -111,9 +113,15 @@ fun UpdateDialog(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            "Se o erro persistir, desinstale o app e instale o APK manualmente.",
+                            "O app foi assinado com uma chave diferente da que está instalada. É necessário desinstalar antes de instalar a nova versão.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Seus dados do app serão preservados.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                         )
                     }
                 }
@@ -201,6 +209,16 @@ fun UpdateDialog(
                         }
                     }) {
                         Text("Atualizar agora")
+                    }
+                }
+                !installError.isNullOrBlank() -> {
+                    OutlinedButton(onClick = {
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        intent.data = Uri.parse("package:${context.packageName}")
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(intent)
+                    }) {
+                        Text("Desinstalar versão atual")
                     }
                 }
                 installSuccess -> {
