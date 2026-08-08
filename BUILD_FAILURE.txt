@@ -1,4 +1,4 @@
-Build APK failed at 2026-08-04 00:48:14 UTC
+Build APK failed at 2026-08-08 17:48:35 UTC
 
 Downloading https://services.gradle.org/distributions/gradle-8.7-bin.zip
 ............10%.............20%.............30%.............40%............50%.............60%.............70%.............80%.............90%............100%
@@ -13,9 +13,6 @@ Here are the highlights of this release:
 For more details see https://docs.gradle.org/8.7/release-notes.html
 
 Starting a Gradle Daemon (subsequent builds will be faster)
-WARNING: The following problems were found when resolving the SDK location:
-Where: sdk.dir property in local.properties file. Problem: Directory does not exist
-
 > Task :app:clean UP-TO-DATE
 > Task :app:buildKotlinToolingMetadata
 > Task :app:checkKotlinGradlePluginConfigurationErrors
@@ -26,10 +23,10 @@ Where: sdk.dir property in local.properties file. Problem: Directory does not ex
 > Task :app:mapReleaseSourceSetPaths
 > Task :app:generateReleaseResources
 > Task :app:packageReleaseResources
+> Task :app:mergeReleaseResources
 > Task :app:createReleaseCompatibleScreenManifests
 > Task :app:extractDeepLinksRelease
 > Task :app:parseReleaseLocalResources
-> Task :app:mergeReleaseResources
 > Task :app:processReleaseMainManifest
 > Task :app:processReleaseManifest
 > Task :app:javaPreCompileRelease
@@ -42,29 +39,30 @@ Where: sdk.dir property in local.properties file. Problem: Directory does not ex
 > Task :app:stripReleaseDebugSymbols
 Unable to strip the following libraries, packaging them as they are: libdatastore_shared_counter.so.
 
-> Task :app:extractReleaseNativeSymbolTables
-> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
-> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseStartupProfile
+> Task :app:mergeReleaseArtProfile
 > Task :app:mergeReleaseShaders
 > Task :app:compileReleaseShaders NO-SOURCE
 > Task :app:generateReleaseAssets UP-TO-DATE
+> Task :app:extractReleaseNativeSymbolTables
 > Task :app:mergeReleaseAssets
+> Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
 > Task :app:compressReleaseAssets
 > Task :app:extractReleaseVersionControlInfo
 > Task :app:processApplicationManifestReleaseForBundle
 > Task :app:collectReleaseDependencies
 > Task :app:sdkReleaseDependencyData
-> Task :app:processReleaseResources
 > Task :app:validateSigningRelease
 > Task :app:writeReleaseAppMetadata
 > Task :app:writeReleaseSigningConfigVersions
+> Task :app:processReleaseResources
 > Task :app:bundleReleaseResources
 > Task :app:kspReleaseKotlin
 
 > Task :app:compileReleaseKotlin FAILED
-e: file:///home/runner/work/tpoll_android_scanner/tpoll_android_scanner/android_app/app/src/main/java/com/tpoll/scanner/protection/SelfProtection.kt:168:21 Unresolved reference: isDeviceAdminActive
-e: file:///home/runner/work/tpoll_android_scanner/tpoll_android_scanner/android_app/app/src/main/java/com/tpoll/scanner/protection/SelfProtection.kt:185:17 Unresolved reference: isDeviceAdminActive
+e: file:///home/runner/work/tpoll_android_scanner/tpoll_android_scanner/android_app/app/src/main/java/com/tpoll/scanner/MainActivity.kt:364:17 Cannot find a parameter with this name: shadowElevation
+e: file:///home/runner/work/tpoll_android_scanner/tpoll_android_scanner/android_app/app/src/main/java/com/tpoll/scanner/ui/screens/DashboardScreen.kt:641:38 Unresolved reference: copy
+e: file:///home/runner/work/tpoll_android_scanner/tpoll_android_scanner/android_app/app/src/main/java/com/tpoll/scanner/ui/screens/DashboardScreen.kt:689:38 Unresolved reference: copy
 
 FAILURE: Build failed with an exception.
 
@@ -79,5 +77,5 @@ Execution failed for task ':app:compileReleaseKotlin'.
 > Run with --scan to get full insights.
 > Get more help at https://help.gradle.org.
 
-BUILD FAILED in 2m 12s
+BUILD FAILED in 2m 6s
 38 actionable tasks: 37 executed, 1 up-to-date
