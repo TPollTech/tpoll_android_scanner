@@ -1,6 +1,6 @@
 {
-  "version_code": 23,
-  "version_name": "1.8.10",
+  "version_code": 24,
+  "version_name": "1.8.11",
   "changelog": "v1.8.9 — Security Update:\n\n- allowBackup desabilitado (extracao de dados via adb bloqueada)\n- network_security_config: HTTPS obrigatorio, cleartext bloqueado\n- Verificacao de hash SHA-256 no download de atualizacoes\n- data_extraction_rules para backup cloud\n- Acesso verificado a estado da rede",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
   "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
