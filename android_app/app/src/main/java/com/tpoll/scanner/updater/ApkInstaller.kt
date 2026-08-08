@@ -45,7 +45,8 @@ object ApkInstaller {
     suspend fun downloadAndInstall(
         context: Context,
         apkUrl: String,
-        expectedVersionCode: Int
+        expectedVersionCode: Int,
+        expectedSha256: String = ""
     ): ApkInstallRequestResult = withContext(Dispatchers.IO) {
         if (!canRequestPackageInstalls(context)) {
             return@withContext ApkInstallRequestResult.PermissionRequired
@@ -74,6 +75,18 @@ object ApkInstaller {
                 return@withContext ApkInstallRequestResult.Failed(
                     "Não foi possível preparar o arquivo da atualização."
                 )
+            }
+
+            if (expectedSha256.isNotBlank()) {
+                val actualHash = apkFile.inputStream().use { input ->
+                    MessageDigest.getInstance("SHA-256").digest(input.readBytes())
+                        .joinToString("") { "%02x".format(it) }
+                }
+                if (!actualHash.equals(expectedSha256, ignoreCase = true)) {
+                    return@withContext ApkInstallRequestResult.Failed(
+                        "Integridade do APK comprometida. Hash não corresponde."
+                    )
+                }
             }
 
             validateApk(context, apkFile, expectedVersionCode)?.let { validationFailure ->

@@ -125,7 +125,8 @@ fun UpdateDialog(
                                 val install = ApkInstaller.downloadAndInstall(
                                     context = context,
                                     apkUrl = info.apk_url.ifEmpty { info.download_url },
-                                    expectedVersionCode = info.version_code
+                                    expectedVersionCode = info.version_code,
+                                    expectedSha256 = info.sha256
                                 )
                             ) {
                                 is ApkInstallRequestResult.Submitted -> installSubmitted = true

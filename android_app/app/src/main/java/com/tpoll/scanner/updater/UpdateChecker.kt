@@ -22,7 +22,8 @@ data class UpdateInfo(
     val version_name: String = "",
     val changelog: String = "",
     val download_url: String = "",
-    val apk_url: String = ""
+    val apk_url: String = "",
+    val sha256: String = ""
 ) {
     val isNewer: Boolean get() = version_code > currentVersionCode
 
