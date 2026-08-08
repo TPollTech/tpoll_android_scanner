@@ -1,23 +1,68 @@
 ﻿// Copyright (c) 2025 TPoll Tech. Todos os direitos reservados.
-// Este código é propriedade exclusiva da TPoll Tech.
-// É proibida a cópia, distribuição, modificação ou uso comercial
-// sem autorização expressa por escrito do titular dos direitos autorais.
 package com.tpoll.scanner.ui.screens
 
 import android.content.Context
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SdStorage
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.tpoll.scanner.health.*
 import com.tpoll.scanner.ui.theme.*
 import kotlinx.coroutines.Dispatchers
@@ -46,9 +91,17 @@ fun HealthScreen(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 4.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Analisando dispositivos...")
+                    Text(
+                        "Analisando dispositivo...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
                 }
             }
         } else if (report != null) {
@@ -63,10 +116,55 @@ fun HealthScreen(modifier: Modifier = Modifier) {
                 }
 
                 item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        HealthRingCard(
+                            modifier = Modifier.weight(1f),
+                            label = "Bateria",
+                            percentage = r.battery.level / 100f,
+                            color = when (r.battery.status) {
+                                HealthStatus.GOOD -> LowRiskColor
+                                HealthStatus.WARNING -> MediumRiskColor
+                                HealthStatus.CRITICAL -> HighRiskColor
+                                else -> Color.Gray
+                            },
+                            detail = "${r.battery.level}%"
+                        )
+                        HealthRingCard(
+                            modifier = Modifier.weight(1f),
+                            label = "RAM",
+                            percentage = r.memory.usedPercent / 100f,
+                            color = when (r.memory.status) {
+                                HealthStatus.GOOD -> LowRiskColor
+                                HealthStatus.WARNING -> MediumRiskColor
+                                HealthStatus.CRITICAL -> HighRiskColor
+                                else -> Color.Gray
+                            },
+                            detail = "${r.memory.usedPercent}%"
+                        )
+                        HealthRingCard(
+                            modifier = Modifier.weight(1f),
+                            label = "Armazenamento",
+                            percentage = r.internalStorage.usedPercent / 100f,
+                            color = when (r.internalStorage.status) {
+                                HealthStatus.GOOD -> LowRiskColor
+                                HealthStatus.WARNING -> MediumRiskColor
+                                HealthStatus.CRITICAL -> HighRiskColor
+                                else -> Color.Gray
+                            },
+                            detail = "${r.internalStorage.usedPercent}%"
+                        )
+                    }
+                }
+
+                item {
                     Text(
                         text = "Componentes",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
 
@@ -96,7 +194,7 @@ fun HealthScreen(modifier: Modifier = Modifier) {
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedButton(
                         onClick = {
                             scope.launch {
@@ -107,16 +205,80 @@ fun HealthScreen(modifier: Modifier = Modifier) {
                                 isChecking = false
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = !isChecking
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        enabled = !isChecking,
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Reanalisar")
+                        Text("Reanalisar", fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HealthRingCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    percentage: Float,
+    color: Color,
+    detail: String
+) {
+    val animatedPercentage by animateFloatAsState(
+        targetValue = percentage.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+        label = "ring_anim"
+    )
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier.size(64.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(modifier = Modifier.size(64.dp)) {
+                    drawArc(
+                        color = color.copy(alpha = 0.15f),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                    drawArc(
+                        color = color,
+                        startAngle = -90f,
+                        sweepAngle = 360f * animatedPercentage,
+                        useCenter = false,
+                        style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = color
+                )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
@@ -131,37 +293,47 @@ private fun OverallHealthCard(report: DeviceHealthReport) {
     }
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.1f))
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.08f))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = when (report.overallStatus) {
-                    HealthStatus.GOOD -> Icons.Default.VerifiedUser
-                    HealthStatus.WARNING -> Icons.Default.Warning
-                    HealthStatus.CRITICAL -> Icons.Default.Error
-                    HealthStatus.UNKNOWN -> Icons.Default.Help
-                },
-                contentDescription = null,
-                tint = statusColor,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                shape = CircleShape,
+                color = statusColor.copy(alpha = 0.15f),
+                modifier = Modifier.size(64.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = when (report.overallStatus) {
+                            HealthStatus.GOOD -> Icons.Default.VerifiedUser
+                            HealthStatus.WARNING -> Icons.Default.Warning
+                            HealthStatus.CRITICAL -> Icons.Default.Error
+                            HealthStatus.UNKNOWN -> Icons.Default.Help
+                        },
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = statusText,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = statusColor
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "${report.healthyCount} saudável / ${report.warningCount} atenção / ${report.criticalCount} crítico",
+                text = "${report.healthyCount} saudável · ${report.warningCount} atenção · ${report.criticalCount} crítico",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
         }
     }
@@ -181,30 +353,49 @@ private fun HealthRow(
         HealthStatus.UNKNOWN -> Color.Gray
     }
 
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            icon()
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    icon()
+                }
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Text(text = value, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
-            Icon(
-                imageVector = when (status) {
-                    HealthStatus.GOOD -> Icons.Default.CheckCircle
-                    HealthStatus.WARNING -> Icons.Default.Warning
-                    HealthStatus.CRITICAL -> Icons.Default.Error
-                    HealthStatus.UNKNOWN -> Icons.Default.Help
-                },
-                contentDescription = null,
-                tint = statusColor,
-                modifier = Modifier.size(24.dp)
-            )
+            Surface(
+                shape = CircleShape,
+                color = statusColor.copy(alpha = 0.12f),
+                modifier = Modifier.size(32.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = when (status) {
+                            HealthStatus.GOOD -> Icons.Default.VerifiedUser
+                            HealthStatus.WARNING -> Icons.Default.Warning
+                            HealthStatus.CRITICAL -> Icons.Default.Error
+                            HealthStatus.UNKNOWN -> Icons.Default.Help
+                        },
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -212,9 +403,9 @@ private fun HealthRow(
 @Composable
 private fun BatteryCard(battery: BatteryHealth) {
     HealthRow(
-        icon = { Icon(Icons.Default.BatteryFull, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.BatteryFull, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "Bateria",
-        value = "${battery.level}% - ${battery.temperature}°C - ${if (battery.isCharging) "Carregando" else "Descarregando"} (${battery.health})",
+        value = "${battery.level}% · ${battery.temperature}°C · ${if (battery.isCharging) "Carregando" else "Descarregando"} (${battery.health})",
         status = battery.status
     )
 }
@@ -222,9 +413,9 @@ private fun BatteryCard(battery: BatteryHealth) {
 @Composable
 private fun StorageCard(label: String, storage: StorageHealth) {
     HealthRow(
-        icon = { Icon(Icons.Default.SdStorage, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.SdStorage, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = label,
-        value = "${storage.usedFormatted} usados de ${storage.totalFormatted} (${storage.usedPercent}%)",
+        value = "${storage.usedFormatted} / ${storage.totalFormatted} (${storage.usedPercent}%)",
         status = storage.status
     )
 }
@@ -232,18 +423,18 @@ private fun StorageCard(label: String, storage: StorageHealth) {
 @Composable
 private fun MemoryCard(memory: MemoryHealth) {
     HealthRow(
-        icon = { Icon(Icons.Default.Memory, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.Memory, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "RAM",
-        value = "${memory.usedFormatted} usados de ${memory.totalFormatted} (${memory.usedPercent}%)",
+        value = "${memory.usedFormatted} / ${memory.totalFormatted} (${memory.usedPercent}%)",
         status = memory.status
     )
 }
 
 @Composable
 private fun CpuCard(cpu: CpuHealth) {
-    val tempText = if (cpu.temperature != null) " - ${cpu.temperature}°C" else ""
+    val tempText = if (cpu.temperature != null) " · ${cpu.temperature}°C" else ""
     HealthRow(
-        icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "CPU",
         value = "Uso: ${cpu.usagePercent}%$tempText",
         status = cpu.status
@@ -254,11 +445,11 @@ private fun CpuCard(cpu: CpuHealth) {
 private fun NetworkCard(network: NetworkHealth) {
     val detail = buildString {
         append(if (network.isConnected) "Conectado" else "Desconectado")
-        if (network.isWifiEnabled) append(" (WiFi)")
-        if (network.isMobileDataEnabled) append(" (Móvel)")
+        if (network.isWifiEnabled) append(" · WiFi")
+        if (network.isMobileDataEnabled) append(" · Móvel")
     }
     HealthRow(
-        icon = { Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.Wifi, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "Rede",
         value = detail,
         status = network.status
@@ -268,7 +459,7 @@ private fun NetworkCard(network: NetworkHealth) {
 @Composable
 private fun BluetoothCard(bt: BluetoothHealth) {
     HealthRow(
-        icon = { Icon(Icons.Default.Bluetooth, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.Bluetooth, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "Bluetooth",
         value = if (bt.isEnabled) "Ligado" else "Desligado",
         status = bt.status
@@ -278,7 +469,7 @@ private fun BluetoothCard(bt: BluetoothHealth) {
 @Composable
 private fun ScreenCard(info: String) {
     HealthRow(
-        icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "Tela",
         value = info,
         status = HealthStatus.GOOD
@@ -288,7 +479,7 @@ private fun ScreenCard(info: String) {
 @Composable
 private fun UptimeCard(days: Int) {
     HealthRow(
-        icon = { Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = "Tempo ligado",
         value = "$days dia(s)",
         status = HealthStatus.GOOD
@@ -298,7 +489,7 @@ private fun UptimeCard(days: Int) {
 @Composable
 private fun SensorCard(sensor: SensorHealth) {
     HealthRow(
-        icon = { Icon(Icons.Default.Sensors, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+        icon = { Icon(Icons.Default.Sensors, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) },
         label = sensor.name,
         value = if (sensor.isPresent) "Detectado" else "Ausente",
         status = if (sensor.isPresent) HealthStatus.GOOD else HealthStatus.WARNING

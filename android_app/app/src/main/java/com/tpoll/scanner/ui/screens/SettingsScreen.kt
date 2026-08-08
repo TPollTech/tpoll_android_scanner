@@ -35,7 +35,8 @@ import java.security.MessageDigest
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSignOut: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("scan_settings", Context.MODE_PRIVATE) }
@@ -550,6 +551,17 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Código")
                     }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onSignOut,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Sair da conta")
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

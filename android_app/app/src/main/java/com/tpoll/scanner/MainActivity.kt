@@ -12,6 +12,18 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,12 +37,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.History
@@ -39,21 +47,26 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CleaningServices
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +74,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +97,8 @@ import com.tpoll.scanner.ui.screens.PermissionScreen
 import com.tpoll.scanner.ui.screens.PremiumScreen
 import com.tpoll.scanner.ui.screens.QuarantineScreen
 import com.tpoll.scanner.ui.screens.SettingsScreen
+import com.tpoll.scanner.ui.theme.AppGradients
+import com.tpoll.scanner.ui.theme.LocalExtendedColors
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
 
 class MainActivity : ComponentActivity() {
@@ -260,13 +278,19 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Screen(val route: String, val label: String, val title: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Início", "TPoll Scanner", Icons.Default.Home),
-    Cleaner("cleaner", "Limpeza", "Limpeza inteligente", Icons.Default.CleaningServices),
-    History("history", "Histórico", "Histórico", Icons.Default.History),
-    Health("health", "Saúde", "Saúde do dispositivo", Icons.Default.Favorite),
-    Premium("premium", "Premium", "TPoll Premium", Icons.Default.Star),
-    Settings("settings", "Ajustes", "Ajustes", Icons.Default.Settings)
+enum class Screen(
+    val route: String,
+    val label: String,
+    val title: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+) {
+    Dashboard("dashboard", "Início", "TPoll Scanner", Icons.Filled.Home, Icons.Outlined.Home),
+    Cleaner("cleaner", "Limpeza", "Limpeza inteligente", Icons.Filled.CleaningServices, Icons.Outlined.CleaningServices),
+    History("history", "Histórico", "Histórico", Icons.Filled.History, Icons.Outlined.History),
+    Health("health", "Saúde", "Saúde do dispositivo", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder),
+    Premium("premium", "Premium", "TPoll Premium", Icons.Filled.Star, Icons.Outlined.Star),
+    Settings("settings", "Ajustes", "Ajustes", Icons.Filled.Settings, Icons.Outlined.Settings)
 }
 
 @Composable
@@ -275,64 +299,129 @@ fun LoginScreen(
     onGoogleLogin: () -> Unit,
     onContinueWithoutLogin: () -> Unit
 ) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    val extended = LocalExtendedColors.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(340.dp)
+                .background(extended.gradientPrimary)
+        )
+
         Column(
-            modifier = Modifier.fillMaxSize().padding(22.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            ElevatedCard(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Surface(
+                modifier = Modifier.size(88.dp),
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White.copy(alpha = 0.2f),
+                shadowElevation = 8.dp
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Security,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(20.dp)
+                        .size(48.dp),
+                    tint = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                text = "TPoll Scanner",
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Black,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Proteção automática contra malware",
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                shadowElevation = 12.dp
+            ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Surface(
+                    Button(
+                        onClick = onGoogleLogin,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Security,
+                            painter = painterResource(id = R.drawable.ic_google),
                             contentDescription = null,
-                            modifier = Modifier.padding(12.dp).size(34.dp),
-                            tint = MaterialTheme.colorScheme.primary
+                            modifier = Modifier.size(22.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Entrar com Google",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "TPoll Scanner",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Antivírus, limpeza e privacidade para Android.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(22.dp))
-                    Button(onClick = onGoogleLogin, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(15.dp)) {
-                        Icon(painter = painterResource(id = R.drawable.ic_google), contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Entrar com Google", fontWeight = FontWeight.SemiBold)
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     OutlinedButton(
                         onClick = onContinueWithoutLogin,
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
-                        shape = RoundedCornerShape(15.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Continuar sem conta")
+                        Icon(
+                            Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            "Continuar sem conta",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        )
                     }
 
                     if (!errorMessage.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-                            modifier = Modifier.fillMaxWidth()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.errorContainer
                         ) {
                             Text(
                                 text = errorMessage,
@@ -349,7 +438,6 @@ fun LoginScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(onSignOut: () -> Unit = {}) {
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
@@ -366,32 +454,61 @@ fun MainScreen(onSignOut: () -> Unit = {}) {
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(currentScreen.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                },
-                actions = {
-                    IconButton(onClick = onSignOut) {
-                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sair")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            ScrollableBottomBar(
-                screens = Screen.entries,
-                selected = currentScreen,
-                onSelected = { currentScreen = it }
-            )
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 16.dp,
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+            ) {
+                NavigationBar(
+                    containerColor = Color.Transparent,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Screen.entries.forEach { screen ->
+                        val selected = currentScreen == screen
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { currentScreen = screen },
+                            icon = {
+                                Icon(
+                                    imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                    contentDescription = screen.label,
+                                    modifier = Modifier.size(if (selected) 24.dp else 22.dp)
+                                )
+                            },
+                            label = {
+                                Text(
+                                    screen.label,
+                                    fontSize = if (selected) 11.sp else 10.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            when (currentScreen) {
+        AnimatedContent(
+            targetState = currentScreen,
+            modifier = Modifier.padding(paddingValues),
+            transitionSpec = {
+                fadeIn(tween(200)) + slideInVertically(tween(200), initialOffsetY = { it / 40 }) togetherWith
+                    fadeOut(tween(150)) + slideOutVertically(tween(150), targetOffsetY = { it / 40 })
+            },
+            label = "screen_transition"
+        ) { screen ->
+            when (screen) {
                 Screen.Dashboard -> DashboardScreen(
                     onNavigateToHistory = { currentScreen = Screen.History },
                     onNavigateToHealth = { currentScreen = Screen.Health },
@@ -402,59 +519,7 @@ fun MainScreen(onSignOut: () -> Unit = {}) {
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()
                 Screen.Premium -> PremiumScreen()
-                Screen.Settings -> SettingsScreen()
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScrollableBottomBar(
-    screens: List<Screen>,
-    selected: Screen,
-    onSelected: (Screen) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 8.dp,
-        shadowElevation = 8.dp,
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(screens) { screen ->
-                val isSelected = screen == selected
-                Surface(
-                    modifier = Modifier
-                        .widthIn(min = 76.dp)
-                        .clickable { onSelected(screen) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            screen.icon,
-                            contentDescription = screen.label,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(
-                            screen.label,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                }
+                Screen.Settings -> SettingsScreen(onSignOut = onSignOut)
             }
         }
     }
