@@ -91,10 +91,13 @@ Sempre que houver limpeza/exclusão, o fluxo deve ser:
 
 ```bat
 cd android_app
-gradlew assembleDebug
+gradlew assembleRelease
 ```
 
-Para release, use o processo atual de assinatura do projeto.
+Builds `release` exigem a chave definitiva e nunca usam chave de debug. Consulte
+[`RELEASE_SIGNING.md`](RELEASE_SIGNING.md) para criar a chave uma única vez,
+configurar os secrets do GitHub Actions e entender a migração das versões
+antigas.
 
 ## Personalização das regras
 

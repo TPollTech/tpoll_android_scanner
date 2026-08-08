@@ -54,6 +54,10 @@ app/
 2. Sync Gradle
 3. Run no dispositivo ou emulador
 
+Builds de produção exigem uma chave de assinatura estável. Veja
+`../RELEASE_SIGNING.md`; uma build `release` sem essa configuração falha de
+propósito para impedir APKs incompatíveis entre atualizações.
+
 ## Configurações
 
 - **Intervalo de scan**: 1h, 2h, 3h, 6h, 12h, 24h

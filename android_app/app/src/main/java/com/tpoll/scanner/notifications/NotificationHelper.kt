@@ -26,6 +26,7 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_THREATS = "threats_channel"
         const val CHANNEL_PROTECTION = "protection_channel"
         const val CHANNEL_WEBGUARD = "webguard_channel"
+        const val CHANNEL_UPDATES = "updates_channel"
         const val NOTIFICATION_SCAN_ID = 1001
         const val NOTIFICATION_THREATS_ID = 1002
         const val NOTIFICATION_SHIELD_ALERT_BASE = 2000
@@ -75,10 +76,19 @@ class NotificationHelper(private val context: Context) {
             enableVibration(true)
         }
 
+        val updatesChannel = NotificationChannel(
+            CHANNEL_UPDATES,
+            "Atualizações do app",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Download, confirmação e resultado de atualizações"
+        }
+
         manager.createNotificationChannel(scanChannel)
         manager.createNotificationChannel(threatsChannel)
         manager.createNotificationChannel(protectionChannel)
         manager.createNotificationChannel(webguardChannel)
+        manager.createNotificationChannel(updatesChannel)
     }
 
     private fun openAppIntent(): PendingIntent {
@@ -200,29 +210,67 @@ class NotificationHelper(private val context: Context) {
         manager.notify(NOTIFICATION_SHIELD_ALERT_BASE + threat.packageName.hashCode(), notification)
     }
 
-    fun showUpdateAvailable(versionName: String, changelog: String, downloadUrl: String) {
+    fun showUpdatePermissionRequired(versionName: String) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val downloadIntent = Intent(Intent.ACTION_VIEW, Uri.parse(downloadUrl)).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val downloadPending = PendingIntent.getActivity(
-            context, 4002, downloadIntent,
+        val permissionIntent = Intent(
+            android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+            Uri.parse("package:${context.packageName}")
+        )
+        val permissionPending = PendingIntent.getActivity(
+            context,
+            4002,
+            permissionIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_THREATS)
+        val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)
             .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle("Nova versão disponível: $versionName")
-            .setContentText("Toque para ver as novidades")
-            .setStyle(NotificationCompat.BigTextStyle().bigText(changelog.take(500)))
+            .setContentTitle("Autorize a atualização $versionName")
+            .setContentText("Permita que o TPoll Scanner instale a própria atualização.")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    "Toque em Permitir e ative a instalação por esta fonte. " +
+                        "Depois, volte ao app e verifique a atualização novamente."
+                )
+            )
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openAppIntent())
-            .addAction(0, "Baixar", downloadPending)
+            .setContentIntent(permissionPending)
             .setAutoCancel(true)
             .build()
+        manager.notify(4002, notification)
+    }
 
-        manager.notify(4001, notification)
+    fun showUpdateReadyToInstall(confirmationIntent: Intent) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val confirmationPending = PendingIntent.getActivity(
+            context,
+            4003,
+            confirmationIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)
+            .setSmallIcon(R.drawable.ic_shield)
+            .setContentTitle("Atualização pronta para instalar")
+            .setContentText("O Android precisa da sua confirmação para concluir.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(confirmationPending)
+            .addAction(0, "Instalar", confirmationPending)
+            .setAutoCancel(true)
+            .build()
+        manager.notify(4003, notification)
+    }
+
+    fun showUpdateInstallFailed(message: String) {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)
+            .setSmallIcon(R.drawable.ic_shield)
+            .setContentTitle("Não foi possível atualizar")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(openAppIntent())
+            .setAutoCancel(true)
+            .build()
+        manager.notify(4004, notification)
     }
 
     fun showWebGuardAlert(fileName: String, threatDetail: String) {

@@ -1,14 +1,11 @@
 name: Build and publish APK
 
 concurrency:
-  group: build-apk-${{ github.event.pull_request.number || github.ref }}
+  group: build-apk-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
@@ -24,21 +21,23 @@ permissions:
 
 jobs:
   build-apk:
-    if: github.event_name != 'pull_request' || github.actor != 'github-actions[bot]'
-    name: Build APK
+    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          ref: ${{ github.ref_name }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+
+      - name: Validate release and updater invariants
+        run: python3 scripts/test_release_invariants.py
 
       - name: Restore google-services.json if secret exists
         env:
@@ -51,26 +50,41 @@ jobs:
             echo "GOOGLE_SERVICES_JSON_BASE64 secret not set. Building without Google login config."
           fi
 
-      - name: Restore release keystore if secrets exist
+      - name: Restore mandatory release signing
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
           RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 }}
         run: |
-          if [ -n "$RELEASE_KEYSTORE_BASE64" ] && [ -n "$RELEASE_STORE_PASSWORD" ] && [ -n "$RELEASE_KEY_ALIAS" ] && [ -n "$RELEASE_KEY_PASSWORD" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > android_app/release.keystore
-            {
-              echo ""
-              echo "RELEASE_STORE_FILE=../release.keystore"
-              echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
-              echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
-              echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
-            } >> android_app/gradle.properties
-            echo "Release keystore restored from secrets."
-          else
-            echo "Release signing secrets not set. APK will be signed with debug fallback key."
+          set -euo pipefail
+          missing=()
+          [ -n "$RELEASE_KEYSTORE_BASE64" ] || missing+=(RELEASE_KEYSTORE_BASE64)
+          [ -n "$RELEASE_STORE_PASSWORD" ] || missing+=(RELEASE_STORE_PASSWORD)
+          [ -n "$RELEASE_KEY_ALIAS" ] || missing+=(RELEASE_KEY_ALIAS)
+          [ -n "$RELEASE_KEY_PASSWORD" ] || missing+=(RELEASE_KEY_PASSWORD)
+          [ -n "$RELEASE_CERT_SHA256" ] || missing+=(RELEASE_CERT_SHA256)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing mandatory GitHub Actions secrets: ${missing[*]}"
+            echo "See RELEASE_SIGNING.md. No APK was published."
+            exit 1
           fi
+
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > android_app/release.keystore
+          {
+            echo ""
+            echo "RELEASE_STORE_FILE=../release.keystore"
+            echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD"
+            echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS"
+            echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD"
+          } >> android_app/gradle.properties
+
+          keytool -list \
+            -keystore android_app/release.keystore \
+            -storepass "$RELEASE_STORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" >/dev/null
+          echo "Release keystore restored and alias validated."
 
       - name: Auto-increment version
         if: github.event_name == 'push'
@@ -156,25 +170,37 @@ jobs:
           ls -lh TPollScanner-release.apk
           sha256sum TPollScanner-release.apk
 
+      - name: Verify release certificate
+        if: steps.build.outcome == 'success'
+        env:
+          RELEASE_CERT_SHA256: ${{ secrets.RELEASE_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs TPollScanner-release.apk)
+          printf '%s\n' "$VERIFY_OUTPUT"
+
+          if printf '%s\n' "$VERIFY_OUTPUT" | grep -q 'CN=Android Debug'; then
+            echo "Refusing to publish an APK signed with an Android Debug certificate."
+            exit 1
+          fi
+
+          ACTUAL_CERT=$(printf '%s\n' "$VERIFY_OUTPUT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p; s/^V2 Signer: certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          EXPECTED_CERT=$(printf '%s' "$RELEASE_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          if [ -z "$ACTUAL_CERT" ] || [ "$ACTUAL_CERT" != "$EXPECTED_CERT" ]; then
+            echo "Release certificate does not match RELEASE_CERT_SHA256."
+            echo "Expected: $EXPECTED_CERT"
+            echo "Actual:   $ACTUAL_CERT"
+            exit 1
+          fi
+          echo "Release certificate verified."
+
       - name: Upload APK artifact
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: TPollScanner-release
           path: TPollScanner-release.apk
-
-      - name: Commit APK to pull request branch
-        if: steps.build.outcome == 'success' && github.event_name == 'pull_request'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -f TPollScanner-release.apk
-          if git diff --cached --quiet; then
-            echo "APK unchanged. Nothing to commit."
-          else
-            git commit -m "Publicar APK 1.8.0"
-            git push origin HEAD:${{ github.head_ref }}
-          fi
 
       - name: Commit APK to main for GitHub Pages download
         if: steps.build.outcome == 'success' && github.event_name == 'push'

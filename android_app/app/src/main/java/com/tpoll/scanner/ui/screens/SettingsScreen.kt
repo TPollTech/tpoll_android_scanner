@@ -29,6 +29,7 @@ import com.tpoll.scanner.ui.theme.ThemeManager
 import com.tpoll.scanner.ui.theme.ThemeMode
 import com.tpoll.scanner.updater.UpdateChecker
 import com.tpoll.scanner.updater.UpdateDialog
+import com.tpoll.scanner.updater.UpdateScheduler
 import java.security.MessageDigest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,9 @@ fun SettingsScreen(
     var autoRemoveMedium by remember { mutableStateOf(prefs.getBoolean("auto_remove_medium", false)) }
     var shieldEnabled by remember { mutableStateOf(ShieldService.isRunning()) }
     var showUpdateDialog by remember { mutableStateOf(false) }
+    var automaticUpdatesEnabled by remember {
+        mutableStateOf(UpdateScheduler.isAutomaticUpdatesEnabled(context))
+    }
 
     if (showUpdateDialog) {
         UpdateDialog(onDismiss = { seenVersionCode ->
@@ -432,6 +436,30 @@ fun SettingsScreen(
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Atualizar automaticamente")
+                        Text(
+                            "Baixa em Wi-Fi e instala em segundo plano quando o Android permite",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                    Switch(
+                        checked = automaticUpdatesEnabled,
+                        onCheckedChange = { enabled ->
+                            automaticUpdatesEnabled = enabled
+                            UpdateScheduler.setAutomaticUpdatesEnabled(context, enabled)
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

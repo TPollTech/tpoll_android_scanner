@@ -16,6 +16,7 @@ import com.tpoll.scanner.protection.SelfProtection
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.updater.RemoteConfig
 import com.tpoll.scanner.updater.UpdateChecker
+import com.tpoll.scanner.updater.UpdateScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,8 +49,8 @@ class TPollApp : Application() {
         ShieldService.start(this)
         selfProtection.enableProtection()
         UpdateChecker.init(this)
+        UpdateScheduler.schedule(this)
         registerPackageReceiver()
-        checkForUpdatesBackground()
         refreshRemoteConfig()
     }
 
@@ -65,23 +66,6 @@ class TPollApp : Application() {
             registerReceiver(receiver, filter, RECEIVER_EXPORTED)
         } else {
             registerReceiver(receiver, filter)
-        }
-    }
-
-    private fun checkForUpdatesBackground() {
-        if (!UpdateChecker.shouldCheck(this)) return
-        scope.launch {
-            try {
-                val result = UpdateChecker().checkForUpdatesWithRetry(this@TPollApp)
-                if (result is com.tpoll.scanner.updater.UpdateResult.Available) {
-                    notificationHelper.showUpdateAvailable(
-                        result.info.version_name,
-                        result.info.changelog,
-                        result.info.apk_url.ifEmpty { result.info.download_url }
-                    )
-                    UpdateChecker.markChecked(this@TPollApp)
-                }
-            } catch (_: Exception) { }
         }
     }
 
