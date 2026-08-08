@@ -1,7 +1,7 @@
 {
   "version_code": 21,
   "version_name": "1.8.8",
-  "changelog": "Correções da v1.8.1:\n\n- Corrigida detecção de atualizações automáticas\n- Versão agora é incrementada automaticamente a cada push\n- Melhorias na proteção do app contra desinstalação",
+  "changelog": "v1.8.8:\n\n- Assinatura release estável\n- Atualizador baixa em segundo plano, valida pacote e assinatura\n- APK release com R8/lint e assinatura v2 válida\n- Correções de detecção e proteção do app",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
   "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
   "min_version_code": 1
