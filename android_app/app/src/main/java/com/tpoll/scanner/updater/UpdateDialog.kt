@@ -145,17 +145,26 @@ fun UpdateDialog(
                     }
                 }
                 installFailure?.requiresOneTimeReinstall == true -> {
-                    OutlinedButton(onClick = {
-                        val pageUrl = (result as? UpdateResult.Available)
-                            ?.info
-                            ?.download_url
-                            .orEmpty()
-                        context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        )
-                    }) {
-                        Text("Baixar versão oficial")
+                    val apkPath = installFailure!!.apkPath
+                    if (apkPath != null) {
+                        Button(onClick = {
+                            ApkInstaller.openApkFile(context, apkPath)
+                        }) {
+                            Text("Instalar versão oficial")
+                        }
+                    } else {
+                        OutlinedButton(onClick = {
+                            val pageUrl = (result as? UpdateResult.Available)
+                                ?.info
+                                ?.download_url
+                                .orEmpty()
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }) {
+                            Text("Baixar versão oficial")
+                        }
                     }
                 }
                 installFailure != null -> {
@@ -256,7 +265,8 @@ private fun FailureContent(failure: ApkInstallRequestResult.Failed) {
         if (failure.requiresOneTimeReinstall) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "A desinstalação apaga os dados locais do app. Faça backup do que for necessário antes de continuar.",
+                "A versão já foi baixada. Toque no botão abaixo para instalar. " +
+                    "É necessário apenas desta vez; as próximas atualizações serão automáticas.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )

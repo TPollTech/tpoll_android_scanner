@@ -22,7 +22,8 @@ sealed class ApkInstallRequestResult {
     data object PermissionRequired : ApkInstallRequestResult()
     data class Failed(
         val message: String,
-        val requiresOneTimeReinstall: Boolean = false
+        val requiresOneTimeReinstall: Boolean = false,
+        val apkPath: String? = null
     ) : ApkInstallRequestResult()
 }
 
@@ -40,6 +41,27 @@ object ApkInstaller {
             Uri.parse("package:${context.packageName}")
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+    }
+
+    fun openApkFile(context: Context, apkPath: String): Boolean {
+        return try {
+            val file = File(apkPath)
+            if (!file.exists()) return false
+            val uri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     suspend fun downloadAndInstall(
@@ -83,6 +105,7 @@ object ApkInstaller {
                         .joinToString("") { "%02x".format(it) }
                 }
                 if (!actualHash.equals(expectedSha256, ignoreCase = true)) {
+                    apkFile.delete()
                     return@withContext ApkInstallRequestResult.Failed(
                         "Integridade do APK comprometida. Hash não corresponde."
                     )
@@ -90,6 +113,15 @@ object ApkInstaller {
             }
 
             validateApk(context, apkFile, expectedVersionCode)?.let { validationFailure ->
+                if (validationFailure.requiresOneTimeReinstall) {
+                    val saved = File(context.cacheDir, "TPollScanner-reinstall.apk")
+                    apkFile.copyTo(saved, overwrite = true)
+                    return@withContext ApkInstallRequestResult.Failed(
+                        message = validationFailure.message,
+                        requiresOneTimeReinstall = true,
+                        apkPath = saved.absolutePath
+                    )
+                }
                 return@withContext validationFailure
             }
 
