@@ -1,11 +1,11 @@
 {
-  "version_code": 24,
-  "version_name": "1.8.11",
+  "version_code": 25,
+  "version_name": "1.8.12",
   "changelog": "Atualização visual e do sistema de updates:\n\n- Nova interface corrigida e validada em build release\n- Publicação com APK imutável por versão\n- Hash, tamanho, pacote, versão e certificado validados automaticamente\n- Download retomável e estado de atualização recuperável\n- Verificação em qualquer rede e download automático somente no Wi-Fi",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
-  "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
-  "sha256": "878501C1E1220991146455FD61A16E930599818600157C013380FE26BA2AAB03",
-  "size_bytes": 4097991,
-  "released_at": "2026-08-08T02:37:17Z",
+  "apk_url": "https://github.com/TPollTech/tpoll_android_scanner/releases/download/v1.8.12/TPollScanner-release.apk",
+  "sha256": "4A0A889D9E650660652E68B075CF4D991544B4AAEEDB202F2E073D1F3624534B",
+  "size_bytes": 4105898,
+  "released_at": "2026-08-10T14:16:46Z",
   "min_version_code": 1
 }
