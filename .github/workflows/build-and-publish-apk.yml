@@ -215,19 +215,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -eu
-            adb install previous-release.apk
-            PREVIOUS_VERSION=$(adb shell dumpsys package com.tpoll.scanner | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -n 1)
-            adb install -r TPollScanner-release.apk
-            INSTALLED_VERSION=$(adb shell dumpsys package com.tpoll.scanner | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -n 1)
-            [ -n "$PREVIOUS_VERSION" ] || { echo "Could not read previous versionCode."; exit 1; }
-            [ -n "$INSTALLED_VERSION" ] || { echo "Could not read installed versionCode."; exit 1; }
-            [ "$PREVIOUS_VERSION" -lt "$INSTALLED_VERSION" ] || { echo "Upgrade did not increase versionCode."; exit 1; }
-            [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION_CODE" ] || { echo "Installed versionCode is $INSTALLED_VERSION."; exit 1; }
-            adb shell am start -W -n com.tpoll.scanner/.MainActivity | tee launch-result.txt
-            grep -q 'Status: ok' launch-result.txt
-            echo "Signed in-place upgrade and app launch verified."
+          script: bash scripts/smoke_test_android_upgrade.sh
 
       - name: Ensure this is still the newest source commit
         run: |

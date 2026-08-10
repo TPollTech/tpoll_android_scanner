@@ -46,17 +46,21 @@ class ReleaseInvariantTests(unittest.TestCase):
             ROOT / ".github/workflows/build-and-publish-apk.yml"
         ).read_text(encoding="utf-8")
         landing = (ROOT / "index.html").read_text(encoding="utf-8")
+        upgrade_smoke = (
+            ROOT / "scripts/smoke_test_android_upgrade.sh"
+        ).read_text(encoding="utf-8")
 
         self.assertIn("scripts/release_manifest.py finalize", workflow)
         self.assertIn("scripts/release_manifest.py verify", workflow)
         self.assertIn("gh release create", workflow)
         self.assertIn("Publish immutable release and manifest last", workflow)
         self.assertIn("cleanup_unpublished_release", workflow)
-        self.assertIn("adb install previous-release.apk", workflow)
-        self.assertIn("adb install -r TPollScanner-release.apk", workflow)
+        self.assertIn("bash scripts/smoke_test_android_upgrade.sh", workflow)
+        self.assertIn('adb install "$PREVIOUS_APK"', upgrade_smoke)
+        self.assertIn('adb install -r "$RELEASE_APK"', upgrade_smoke)
         self.assertIn("android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d", workflow)
         self.assertIn("99-kvm4all.rules", workflow)
-        self.assertIn("set -eu\n            adb install previous-release.apk", workflow)
+        self.assertIn("set -euo pipefail", upgrade_smoke)
         self.assertIn("git rm -f --ignore-unmatch TPollScanner-release.apk BUILD_FAILURE.txt", workflow)
         self.assertIn("releases/latest/download/TPollScanner-release.apk", landing)
         self.assertNotIn('href="TPollScanner-release.apk"', landing)
