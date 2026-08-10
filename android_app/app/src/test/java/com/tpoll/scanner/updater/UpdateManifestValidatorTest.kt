@@ -38,6 +38,19 @@ class UpdateManifestValidatorTest {
     }
 
     @Test
+    fun rejectsApkUrlWhoseFilenameDoesNotIdentifyTheRelease() {
+        assertEquals(
+            "O manifesto não aponta para o APK oficial desta versão.",
+            UpdateManifestValidator.error(
+                validManifest().copy(
+                    apk_url = "https://github.com/TPollTech/tpoll_android_scanner/" +
+                        "releases/download/v1.8.12/TPollScanner-release.apk"
+                )
+            )
+        )
+    }
+
+    @Test
     fun rejectsMinimumVersionNewerThanOfferedApk() {
         assertEquals(
             "O manifesto exige uma versão mínima maior que a atualização disponível.",
@@ -59,7 +72,8 @@ class UpdateManifestValidatorTest {
         version_name = "1.8.12",
         changelog = "Correções",
         download_url = "https://example.com/download",
-        apk_url = "https://example.com/v1.8.12/app.apk",
+        apk_url = "https://github.com/TPollTech/tpoll_android_scanner/" +
+            "releases/download/v1.8.12/TPollScanner-1.8.12-release.apk",
         sha256 = "A".repeat(64),
         size_bytes = 4_000_000L,
         released_at = "2026-08-08T00:00:00Z",

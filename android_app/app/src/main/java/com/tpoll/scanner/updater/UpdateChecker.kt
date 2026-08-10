@@ -52,6 +52,8 @@ object UpdateManifestValidator {
         info.min_version_code > info.version_code ->
             "O manifesto exige uma versão mínima maior que a atualização disponível."
         !isHttps(info.apk_url) -> "O manifesto não informa um endereço HTTPS para o APK."
+        info.apk_url != expectedApkUrl(info.version_name) ->
+            "O manifesto não aponta para o APK oficial desta versão."
         !isHttps(info.download_url) -> "O manifesto não informa uma página HTTPS de download."
         !SHA_256.matches(info.sha256) -> "O manifesto não contém um SHA-256 válido."
         info.size_bytes !in 1..MAX_APK_BYTES -> "O manifesto informa um tamanho de APK inválido."
@@ -61,6 +63,10 @@ object UpdateManifestValidator {
     private fun isHttps(value: String): Boolean = runCatching {
         URL(value).protocol.equals("https", ignoreCase = true)
     }.getOrDefault(false)
+
+    private fun expectedApkUrl(versionName: String): String =
+        "https://github.com/TPollTech/tpoll_android_scanner/releases/download/" +
+            "v$versionName/TPollScanner-$versionName-release.apk"
 }
 
 class UpdateChecker(private val context: Context) {

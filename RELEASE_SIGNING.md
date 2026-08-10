@@ -98,12 +98,13 @@ Um push de código na `main` executa o workflow de produção. Ele:
 4. baixa o APK público anterior, instala-o em um emulador e executa
    `adb install -r` com o APK novo;
 5. abre o app atualizado no emulador;
-6. cria a GitHub Release imutável `vX.Y.Z`;
+6. cria a GitHub Release imutável `vX.Y.Z` com o arquivo
+   `TPollScanner-X.Y.Z-release.apk`;
 7. publica `update.json` por último.
 
 Se qualquer etapa falhar, o manifesto público não muda. O log é anexado ao
-Actions e não é commitado. `TPollScanner-release.apk` e `BUILD_FAILURE.txt`
-deixaram de ser artefatos versionados; a fonte oficial do APK é a GitHub Release.
+Actions e não é commitado. APKs e `BUILD_FAILURE.txt` não são artefatos do
+repositório; a fonte oficial é o arquivo versionado da GitHub Release.
 
 ## 5. Migração das versões antigas
 

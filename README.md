@@ -110,10 +110,12 @@ no GitHub Actions quando um commit de código chega à `main`:
 4. cria uma GitHub Release imutável com o novo APK;
 5. publica `update.json` por último, somente depois de todas as validações.
 
-O APK na raiz do repositório não é mais a fonte de distribuição. A página de
-download usa sempre o ativo `TPollScanner-release.apk` da GitHub Release mais
-recente. Falhas de build ficam no resumo e em um artefato temporário do Actions;
-elas não geram commits no código.
+O APK na raiz do repositório não é mais a fonte de distribuição. Cada GitHub
+Release publica um nome exclusivo, como `TPollScanner-1.8.13-release.apk`, e a
+página consulta `update.json` para apontar ao arquivo da versão atual. Isso evita
+confundir uma APK antiga com a atual quando ambas ficam salvas no mesmo aparelho
+ou em uma pasta compartilhada de emulador. Falhas de build ficam no resumo e em
+um artefato temporário do Actions; elas não geram commits no código.
 
 No app, a verificação roda em segundo plano. O download pesado espera uma rede
 não tarifada, bateria e armazenamento adequados, valida tamanho, hash, pacote,

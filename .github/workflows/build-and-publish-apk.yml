@@ -10,8 +10,6 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'TPollScanner-release.apk'
-      - 'BUILD_FAILURE.txt'
       - '**/*.md'
       - 'update.json'
 
@@ -131,14 +129,18 @@ jobs:
           retention-days: 14
 
       - name: Prepare release artifact
+        id: artifact
         env:
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
         run: |
-          cp android_app/app/build/outputs/apk/release/app-release.apk TPollScanner-release.apk
-          ls -lh TPollScanner-release.apk
-          sha256sum TPollScanner-release.apk
+          APK_FILE_NAME="TPollScanner-$VERSION_NAME-release.apk"
+          cp android_app/app/build/outputs/apk/release/app-release.apk "$APK_FILE_NAME"
+          ls -lh "$APK_FILE_NAME"
+          sha256sum "$APK_FILE_NAME"
+          echo "apk_file_name=$APK_FILE_NAME" >> "$GITHUB_OUTPUT"
+          echo "APK_FILE_NAME=$APK_FILE_NAME" >> "$GITHUB_ENV"
           echo "RELEASE_TAG=v$VERSION_NAME" >> "$GITHUB_ENV"
-          echo "APK_URL=https://github.com/${{ github.repository }}/releases/download/v$VERSION_NAME/TPollScanner-release.apk" >> "$GITHUB_ENV"
+          echo "APK_URL=https://github.com/${{ github.repository }}/releases/download/v$VERSION_NAME/$APK_FILE_NAME" >> "$GITHUB_ENV"
 
       - name: Verify package, version, and release certificate
         env:
@@ -149,8 +151,8 @@ jobs:
           set -euo pipefail
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           AAPT2=$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)
-          VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs TPollScanner-release.apk)
-          BADGING=$($AAPT2 dump badging TPollScanner-release.apk | head -n 1)
+          VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs "$APK_FILE_NAME")
+          BADGING=$($AAPT2 dump badging "$APK_FILE_NAME" | head -n 1)
           printf '%s\n' "$VERIFY_OUTPUT"
           printf '%s\n' "$BADGING"
 
@@ -190,13 +192,13 @@ jobs:
         run: |
           python3 scripts/release_manifest.py finalize \
             --manifest update.json \
-            --apk TPollScanner-release.apk \
+            --apk "$APK_FILE_NAME" \
             --version-code "$VERSION_CODE" \
             --version-name "$VERSION_NAME" \
             --apk-url "$APK_URL"
           python3 scripts/release_manifest.py verify \
             --manifest update.json \
-            --apk TPollScanner-release.apk
+            --apk "$APK_FILE_NAME"
 
       - name: Enable KVM for the Android emulator
         run: |
@@ -209,6 +211,7 @@ jobs:
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
           EXPECTED_VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          RELEASE_APK: ${{ steps.artifact.outputs.apk_file_name }}
         with:
           api-level: 35
           arch: x86_64
@@ -230,13 +233,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: TPollScanner-release-${{ steps.version.outputs.version_name }}
-          path: TPollScanner-release.apk
+          path: ${{ steps.artifact.outputs.apk_file_name }}
           retention-days: 30
 
       - name: Publish immutable release and manifest last
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          APK_FILE_NAME: ${{ steps.artifact.outputs.apk_file_name }}
         run: |
           set -Eeuo pipefail
           release_owned=false
@@ -263,10 +267,10 @@ jobs:
               exit 1
             }
             release_owned=true
-            gh release upload "$RELEASE_TAG" TPollScanner-release.apk --clobber
+            gh release upload "$RELEASE_TAG" "$APK_FILE_NAME" --clobber
           else
             release_owned=true
-            gh release create "$RELEASE_TAG" TPollScanner-release.apk \
+            gh release create "$RELEASE_TAG" "$APK_FILE_NAME" \
               --target "$GITHUB_SHA" \
               --title "TPoll Scanner $VERSION_NAME" \
               --generate-notes
@@ -274,7 +278,6 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f --ignore-unmatch TPollScanner-release.apk BUILD_FAILURE.txt
           git add update.json
           git commit -m "release: v$VERSION_NAME"
           git push origin HEAD:main

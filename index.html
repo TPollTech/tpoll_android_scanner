@@ -187,16 +187,16 @@
             <li><a href="#how">Como funciona</a></li>
             <li><a href="#risk">Níveis de risco</a></li>
         </ul>
-        <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest/download/TPollScanner-release.apk" class="btn-download">⬇ Download APK</a>
+        <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest" class="btn-download" data-apk-download>⬇ Download APK</a>
         <button class="hamburger" id="hamburger" aria-label="Menu">
             <span></span><span></span><span></span>
         </button>
     </nav>
 
     <section class="hero">
-        <div class="hero-badge">
+        <div class="hero-badge" id="release-badge">
             <span class="badge-dot"></span>
-            v1.0.0 — Detecção automática de ameaças
+            Versão oficial — Detecção automática de ameaças
         </div>
         <h1>
             Scan. Detecta.<br>
@@ -204,7 +204,7 @@
         </h1>
         <p>Scanner Android que identifica e remove apps maliciosos em segundo plano. Heurísticas avançadas + base de vírus conhecidos. Sem frescura.</p>
         <div class="hero-buttons">
-            <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest/download/TPollScanner-release.apk" class="btn-primary">⬇ Baixar APK</a>
+            <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest" class="btn-primary" data-apk-download>⬇ Baixar APK</a>
             <a href="LICENSE" class="btn-secondary" target="_blank">© Licença</a>
         </div>
         <div class="terminal" id="terminal">
@@ -347,7 +347,7 @@
         <div class="cta-box">
             <h2>Protege o celular agora.</h2>
             <p>Download gratuito. Sem anúncios. Sem assinatura. Software proprietário.</p>
-            <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest/download/TPollScanner-release.apk" class="btn-primary">⬇ Baixar TPoll Scanner</a>
+            <a href="https://github.com/TPollTech/tpoll_android_scanner/releases/latest" class="btn-primary" data-apk-download>⬇ Baixar TPoll Scanner</a>
         </div>
     </section>
 
@@ -357,6 +357,28 @@
     </footer>
 
     <script>
+    const RELEASES_FALLBACK_URL = 'https://github.com/TPollTech/tpoll_android_scanner/releases/latest';
+    const downloadLinks = document.querySelectorAll('[data-apk-download]');
+    const releaseBadge = document.getElementById('release-badge');
+
+    async function configureReleaseDownload() {
+        try {
+            const response = await fetch('update.json', { cache: 'no-store' });
+            if (!response.ok) throw new Error(`Manifesto indisponível: HTTP ${response.status}`);
+            const release = await response.json();
+            const expectedUrl = `https://github.com/TPollTech/tpoll_android_scanner/releases/download/v${release.version_name}/TPollScanner-${release.version_name}-release.apk`;
+            if (release.apk_url !== expectedUrl) throw new Error('Endereço do APK não corresponde à versão publicada.');
+            downloadLinks.forEach(link => { link.href = expectedUrl; });
+            releaseBadge.lastChild.textContent = ` v${release.version_name} — Detecção automática de ameaças`;
+        } catch (error) {
+            console.error('Não foi possível carregar o download direto.', error);
+            downloadLinks.forEach(link => { link.href = RELEASES_FALLBACK_URL; });
+            releaseBadge.lastChild.textContent = ' Versão oficial — veja a release mais recente';
+        }
+    }
+
+    configureReleaseDownload();
+
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
     let particles = [];

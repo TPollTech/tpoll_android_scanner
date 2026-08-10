@@ -3,7 +3,13 @@ import pathlib
 import tempfile
 import unittest
 
-from release_manifest import finalize_manifest, next_version, validate_manifest, write_manifest
+from release_manifest import (
+    expected_apk_url,
+    finalize_manifest,
+    next_version,
+    validate_manifest,
+    write_manifest,
+)
 
 
 class ReleaseManifestTests(unittest.TestCase):
@@ -13,7 +19,7 @@ class ReleaseManifestTests(unittest.TestCase):
             "version_name": "1.8.11",
             "changelog": "Teste",
             "download_url": "https://example.com/download",
-            "apk_url": "https://example.com/v1.8.11/app.apk",
+            "apk_url": expected_apk_url("1.8.11"),
             "sha256": "0" * 64,
             "size_bytes": 1,
             "released_at": "2026-08-08T00:00:00Z",
@@ -32,7 +38,7 @@ class ReleaseManifestTests(unittest.TestCase):
                 apk,
                 version_code=25,
                 version_name="1.8.12",
-                apk_url="https://example.com/v1.8.12/app.apk",
+                apk_url=expected_apk_url("1.8.12"),
                 released_at="2026-08-08T01:00:00Z",
             )
 
@@ -51,6 +57,18 @@ class ReleaseManifestTests(unittest.TestCase):
         manifest = self.base_manifest() | {"min_version_code": 25}
         self.assertIn(
             "min_version_code must be between 1 and version_code",
+            validate_manifest(manifest),
+        )
+
+    def test_validation_rejects_ambiguous_release_filename(self) -> None:
+        manifest = self.base_manifest() | {
+            "apk_url": (
+                "https://github.com/TPollTech/tpoll_android_scanner/"
+                "releases/download/v1.8.11/TPollScanner-release.apk"
+            )
+        }
+        self.assertIn(
+            "apk_url must use the canonical versioned release filename",
             validate_manifest(manifest),
         )
 

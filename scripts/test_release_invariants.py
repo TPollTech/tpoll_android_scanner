@@ -61,8 +61,12 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn("android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d", workflow)
         self.assertIn("99-kvm4all.rules", workflow)
         self.assertIn("set -euo pipefail", upgrade_smoke)
-        self.assertIn("git rm -f --ignore-unmatch TPollScanner-release.apk BUILD_FAILURE.txt", workflow)
-        self.assertIn("releases/latest/download/TPollScanner-release.apk", landing)
+        self.assertIn('APK_FILE_NAME="TPollScanner-$VERSION_NAME-release.apk"', workflow)
+        self.assertIn('gh release create "$RELEASE_TAG" "$APK_FILE_NAME"', workflow)
+        self.assertNotIn("releases/latest/download/TPollScanner-release.apk", landing)
+        self.assertIn("data-apk-download", landing)
+        self.assertIn("fetch('update.json', { cache: 'no-store' })", landing)
+        self.assertIn("TPollScanner-${release.version_name}-release.apk", landing)
         self.assertNotIn('href="TPollScanner-release.apk"', landing)
 
     def test_update_manifest_contains_mandatory_integrity_metadata(self) -> None:

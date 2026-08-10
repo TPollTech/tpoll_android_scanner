@@ -3,7 +3,8 @@ set -euo pipefail
 
 readonly PACKAGE_NAME="com.tpoll.scanner"
 readonly PREVIOUS_APK="previous-release.apk"
-readonly RELEASE_APK="TPollScanner-release.apk"
+: "${RELEASE_APK:?RELEASE_APK must point to the versioned release APK}"
+readonly RELEASE_APK
 
 read_installed_version() {
   local versions

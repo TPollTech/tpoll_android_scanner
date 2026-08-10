@@ -15,6 +15,16 @@ from datetime import datetime, timezone
 VERSION_PATTERN = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 SHA_256_PATTERN = re.compile(r"^[0-9A-F]{64}$")
 MAX_APK_BYTES = 250 * 1024 * 1024
+RELEASE_BASE_URL = (
+    "https://github.com/TPollTech/tpoll_android_scanner/releases/download"
+)
+
+
+def expected_apk_url(version_name: str) -> str:
+    return (
+        f"{RELEASE_BASE_URL}/v{version_name}/"
+        f"TPollScanner-{version_name}-release.apk"
+    )
 
 
 def load_manifest(path: pathlib.Path) -> dict:
@@ -83,8 +93,14 @@ def validate_manifest(manifest: dict, apk_path: pathlib.Path | None = None) -> l
         errors.append("version_name must use major.minor.patch")
     if not str(manifest.get("download_url", "")).startswith("https://"):
         errors.append("download_url must use HTTPS")
-    if not str(manifest.get("apk_url", "")).startswith("https://"):
+    apk_url = str(manifest.get("apk_url", ""))
+    version_name = str(manifest.get("version_name", ""))
+    if not apk_url.startswith("https://"):
         errors.append("apk_url must use HTTPS")
+    elif VERSION_PATTERN.fullmatch(version_name) is not None and apk_url != expected_apk_url(
+        version_name
+    ):
+        errors.append("apk_url must use the canonical versioned release filename")
     manifest_hash = str(manifest.get("sha256", "")).upper()
     if SHA_256_PATTERN.fullmatch(manifest_hash) is None:
         errors.append("sha256 must contain exactly 64 hexadecimal characters")
