@@ -55,6 +55,8 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn("adb install previous-release.apk", workflow)
         self.assertIn("adb install -r TPollScanner-release.apk", workflow)
         self.assertIn("android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d", workflow)
+        self.assertIn("99-kvm4all.rules", workflow)
+        self.assertIn("set -eu\n            adb install previous-release.apk", workflow)
         self.assertIn("git rm -f --ignore-unmatch TPollScanner-release.apk BUILD_FAILURE.txt", workflow)
         self.assertIn("releases/latest/download/TPollScanner-release.apk", landing)
         self.assertNotIn('href="TPollScanner-release.apk"', landing)

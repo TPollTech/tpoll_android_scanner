@@ -198,6 +198,13 @@ jobs:
             --manifest update.json \
             --apk TPollScanner-release.apk
 
+      - name: Enable KVM for the Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Smoke-test signed upgrade on Android 15
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         env:
@@ -209,11 +216,13 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            set -euo pipefail
+            set -eu
             adb install previous-release.apk
             PREVIOUS_VERSION=$(adb shell dumpsys package com.tpoll.scanner | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -n 1)
             adb install -r TPollScanner-release.apk
             INSTALLED_VERSION=$(adb shell dumpsys package com.tpoll.scanner | sed -n 's/.*versionCode=\([0-9]*\).*/\1/p' | head -n 1)
+            [ -n "$PREVIOUS_VERSION" ] || { echo "Could not read previous versionCode."; exit 1; }
+            [ -n "$INSTALLED_VERSION" ] || { echo "Could not read installed versionCode."; exit 1; }
             [ "$PREVIOUS_VERSION" -lt "$INSTALLED_VERSION" ] || { echo "Upgrade did not increase versionCode."; exit 1; }
             [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION_CODE" ] || { echo "Installed versionCode is $INSTALLED_VERSION."; exit 1; }
             adb shell am start -W -n com.tpoll.scanner/.MainActivity | tee launch-result.txt
