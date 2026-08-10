@@ -1,9 +1,11 @@
 {
   "version_code": 24,
   "version_name": "1.8.11",
-  "changelog": "v1.8.9 — Security Update:\n\n- allowBackup desabilitado (extracao de dados via adb bloqueada)\n- network_security_config: HTTPS obrigatorio, cleartext bloqueado\n- Verificacao de hash SHA-256 no download de atualizacoes\n- data_extraction_rules para backup cloud\n- Acesso verificado a estado da rede",
+  "changelog": "Atualização visual e do sistema de updates:\n\n- Nova interface corrigida e validada em build release\n- Publicação com APK imutável por versão\n- Hash, tamanho, pacote, versão e certificado validados automaticamente\n- Download retomável e estado de atualização recuperável\n- Verificação em qualquer rede e download automático somente no Wi-Fi",
   "download_url": "https://tpolltech.github.io/tpoll_android_scanner/",
   "apk_url": "https://tpolltech.github.io/tpoll_android_scanner/TPollScanner-release.apk",
-  "sha256": "F2D6B9BA612B8C931579E5914C23225BF82A1A0FEFAAC579A991B85B798482B2",
+  "sha256": "878501C1E1220991146455FD61A16E930599818600157C013380FE26BA2AAB03",
+  "size_bytes": 4097991,
+  "released_at": "2026-08-08T02:37:17Z",
   "min_version_code": 1
 }

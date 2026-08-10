@@ -52,11 +52,36 @@ app/
 
 1. Abrir no Android Studio
 2. Sync Gradle
-3. Run no dispositivo ou emulador
+3. Run no dispositivo ou emulador para desenvolvimento
+
+Para validar exatamente o artefato de produção:
+
+```powershell
+.\gradlew.bat clean testReleaseUnitTest lintRelease assembleRelease
+```
 
 Builds de produção exigem uma chave de assinatura estável. Veja
 `../RELEASE_SIGNING.md`; uma build `release` sem essa configuração falha de
 propósito para impedir APKs incompatíveis entre atualizações.
+
+O projeto não publica nem distribui APK `debug`. O CI gera apenas o APK
+`release`, testa uma atualização por cima da versão pública anterior e só depois
+atualiza o manifesto consumido pelo app.
+
+## Atualizador
+
+- A checagem diária usa qualquer conexão e transfere apenas o manifesto pequeno.
+- O APK é baixado em um trabalho separado, com rede não tarifada, bateria e
+  armazenamento adequados.
+- Downloads interrompidos podem continuar do ponto em que pararam.
+- O APK só é instalado depois de validar HTTPS, tamanho, SHA-256, pacote,
+  `versionCode` e certificado.
+- O estado fica persistido e pode ser consultado nas configurações.
+- Permissão ou confirmação do sistema gera uma notificação para o usuário.
+
+O Android decide se uma atualização fora da Play Store pode terminar sem ação
+do usuário. O app solicita o fluxo com menos interação permitido pela plataforma,
+mas não tenta contornar as proteções do sistema.
 
 ## Configurações
 

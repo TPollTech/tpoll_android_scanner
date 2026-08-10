@@ -8,11 +8,10 @@ import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
-import android.provider.Settings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -23,59 +22,47 @@ sealed class ApkInstallRequestResult {
     data class Failed(
         val message: String,
         val requiresOneTimeReinstall: Boolean = false,
-        val apkPath: String? = null
+        val retryable: Boolean = false
     ) : ApkInstallRequestResult()
 }
 
 object ApkInstaller {
 
     private const val MAX_APK_BYTES = 250L * 1024L * 1024L
+    private val SHA_256_PATTERN = Regex("^[0-9a-fA-F]{64}$")
+
     const val ACTION_INSTALL_STATUS = "com.tpoll.scanner.action.UPDATE_INSTALL_STATUS"
+    const val EXTRA_VERSION_CODE = "update_version_code"
+    const val EXTRA_VERSION_NAME = "update_version_name"
 
     fun canRequestPackageInstalls(context: Context): Boolean =
         context.packageManager.canRequestPackageInstalls()
-
-    fun openInstallPermissionSettings(context: Context) {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${context.packageName}")
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(intent)
-    }
-
-    fun openApkFile(context: Context, apkPath: String): Boolean {
-        return try {
-            val file = File(apkPath)
-            if (!file.exists()) return false
-            val uri = androidx.core.content.FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file
-            )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(intent)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
 
     suspend fun downloadAndInstall(
         context: Context,
         apkUrl: String,
         expectedVersionCode: Int,
-        expectedSha256: String = ""
+        expectedSha256: String,
+        expectedSizeBytes: Long
     ): ApkInstallRequestResult = withContext(Dispatchers.IO) {
         if (!canRequestPackageInstalls(context)) {
             return@withContext ApkInstallRequestResult.PermissionRequired
         }
+        if (!SHA_256_PATTERN.matches(expectedSha256)) {
+            return@withContext ApkInstallRequestResult.Failed(
+                "A atualização foi bloqueada porque o manifesto não contém um SHA-256 válido."
+            )
+        }
+        if (expectedSizeBytes !in 1..MAX_APK_BYTES) {
+            return@withContext ApkInstallRequestResult.Failed(
+                "A atualização foi bloqueada porque o tamanho informado é inválido."
+            )
+        }
 
         val url = runCatching { URL(apkUrl) }.getOrElse {
-            return@withContext ApkInstallRequestResult.Failed("Endereço da atualização inválido.")
+            return@withContext ApkInstallRequestResult.Failed(
+                "Endereço da atualização inválido."
+            )
         }
         if (!url.protocol.equals("https", ignoreCase = true)) {
             return@withContext ApkInstallRequestResult.Failed(
@@ -83,107 +70,158 @@ object ApkInstaller {
             )
         }
 
-        val downloadsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: context.cacheDir
-        val partialFile = File(downloadsDir, "TPollScanner-update.apk.part")
-        val apkFile = File(downloadsDir, "TPollScanner-update.apk")
+        val updatesDir = File(context.cacheDir, "updates").apply { mkdirs() }
+        val partialFile = File(updatesDir, "TPollScanner-$expectedVersionCode.apk.part")
+        val apkFile = File(updatesDir, "TPollScanner-$expectedVersionCode.apk")
+        updatesDir.listFiles()
+            .orEmpty()
+            .filterNot { it == partialFile || it == apkFile }
+            .forEach(File::delete)
+        var keepPartialForRetry = false
 
         try {
-            partialFile.delete()
             apkFile.delete()
-            download(url, partialFile)
-
+            val receipt = download(
+                url = url,
+                destination = partialFile,
+                expectedSizeBytes = expectedSizeBytes
+            )
+            if (!receipt.sha256.equals(expectedSha256, ignoreCase = true)) {
+                partialFile.delete()
+                return@withContext ApkInstallRequestResult.Failed(
+                    "Integridade do APK comprometida. O SHA-256 não corresponde."
+                )
+            }
             if (!partialFile.renameTo(apkFile)) {
                 return@withContext ApkInstallRequestResult.Failed(
                     "Não foi possível preparar o arquivo da atualização."
                 )
             }
 
-            if (expectedSha256.isNotBlank()) {
-                val actualHash = apkFile.inputStream().use { input ->
-                    MessageDigest.getInstance("SHA-256").digest(input.readBytes())
-                        .joinToString("") { "%02x".format(it) }
-                }
-                if (!actualHash.equals(expectedSha256, ignoreCase = true)) {
-                    apkFile.delete()
-                    return@withContext ApkInstallRequestResult.Failed(
-                        "Integridade do APK comprometida. Hash não corresponde."
-                    )
-                }
-            }
-
             validateApk(context, apkFile, expectedVersionCode)?.let { validationFailure ->
-                if (validationFailure.requiresOneTimeReinstall) {
-                    val saved = File(context.cacheDir, "TPollScanner-reinstall.apk")
-                    apkFile.copyTo(saved, overwrite = true)
-                    return@withContext ApkInstallRequestResult.Failed(
-                        message = validationFailure.message,
-                        requiresOneTimeReinstall = true,
-                        apkPath = saved.absolutePath
-                    )
-                }
                 return@withContext validationFailure
             }
 
-            submitInstall(context, apkFile)
+            submitInstall(
+                context = context,
+                apkFile = apkFile,
+                versionCode = expectedVersionCode,
+                versionName = extractVersionName(context, apkFile)
+            )
         } catch (_: java.net.UnknownHostException) {
-            ApkInstallRequestResult.Failed("Sem conexão com a internet.")
+            keepPartialForRetry = true
+            ApkInstallRequestResult.Failed("Sem conexão com a internet.", retryable = true)
         } catch (_: java.net.SocketTimeoutException) {
-            ApkInstallRequestResult.Failed("O download demorou demais. Tente novamente.")
+            keepPartialForRetry = true
+            ApkInstallRequestResult.Failed(
+                "O download demorou demais. Uma nova tentativa continuará de onde parou.",
+                retryable = true
+            )
+        } catch (error: DownloadException) {
+            keepPartialForRetry = error.retryable
+            ApkInstallRequestResult.Failed(error.message.orEmpty(), retryable = error.retryable)
         } catch (error: Exception) {
             ApkInstallRequestResult.Failed(
-                "Não foi possível baixar a atualização: ${error.localizedMessage ?: error.javaClass.simpleName}"
+                "Não foi possível baixar a atualização: " +
+                    (error.localizedMessage ?: error.javaClass.simpleName)
             )
         } finally {
-            partialFile.delete()
             apkFile.delete()
+            if (!keepPartialForRetry) partialFile.delete()
         }
     }
 
-    private fun download(url: URL, destination: File) {
+    private fun download(
+        url: URL,
+        destination: File,
+        expectedSizeBytes: Long
+    ): DownloadReceipt {
+        if (destination.exists() && destination.length() == expectedSizeBytes) {
+            return DownloadReceipt(destination.length(), sha256(destination))
+        }
+        if (destination.length() > expectedSizeBytes) destination.delete()
+
+        val resumeOffset = destination.takeIf(File::exists)?.length() ?: 0L
         val connection = (url.openConnection() as HttpURLConnection).apply {
             connectTimeout = 30_000
             readTimeout = 60_000
             instanceFollowRedirects = true
             requestMethod = "GET"
+            setRequestProperty("Accept-Encoding", "identity")
+            if (resumeOffset > 0L) setRequestProperty("Range", "bytes=$resumeOffset-")
             connect()
         }
 
         try {
             if (!connection.url.protocol.equals("https", ignoreCase = true)) {
-                throw IllegalStateException("O redirecionamento do download não usa HTTPS.")
-            }
-            if (connection.responseCode !in 200..299) {
-                throw IllegalStateException("O servidor retornou HTTP ${connection.responseCode}.")
+                throw DownloadException(
+                    "O redirecionamento do download não usa HTTPS.",
+                    retryable = false
+                )
             }
 
+            val responseCode = connection.responseCode
+            val resumed = resumeOffset > 0L && responseCode == HttpURLConnection.HTTP_PARTIAL
+            if (responseCode !in 200..299) {
+                throw DownloadException(
+                    message = "O servidor retornou HTTP $responseCode.",
+                    retryable = responseCode == 408 || responseCode == 429 || responseCode >= 500
+                )
+            }
+
+            val initialSize = if (resumed) resumeOffset else 0L
             val declaredSize = connection.contentLengthLong
-            if (declaredSize > MAX_APK_BYTES) {
-                throw IllegalStateException("O arquivo informado é maior que o limite permitido.")
+            if (declaredSize > 0L && initialSize + declaredSize > MAX_APK_BYTES) {
+                throw DownloadException(
+                    "O arquivo informado é maior que o limite permitido.",
+                    retryable = false
+                )
             }
 
             connection.inputStream.use { input ->
-                destination.outputStream().use { output ->
+                FileOutputStream(destination, resumed).use { output ->
                     val buffer = ByteArray(64 * 1024)
-                    var total = 0L
+                    var total = initialSize
                     while (true) {
                         val read = input.read(buffer)
                         if (read < 0) break
                         total += read
-                        if (total > MAX_APK_BYTES) {
-                            throw IllegalStateException("A atualização excedeu o limite permitido.")
+                        if (total > MAX_APK_BYTES || total > expectedSizeBytes) {
+                            throw DownloadException(
+                                "A atualização excedeu o tamanho anunciado.",
+                                retryable = false
+                            )
                         }
                         output.write(buffer, 0, read)
                     }
+                    output.fd.sync()
                 }
             }
 
-            if (!destination.exists() || destination.length() == 0L) {
-                throw IllegalStateException("O servidor entregou um arquivo vazio.")
+            val actualSize = destination.length()
+            if (actualSize != expectedSizeBytes) {
+                throw DownloadException(
+                    "Download incompleto: esperado $expectedSizeBytes bytes, recebido $actualSize.",
+                    retryable = actualSize < expectedSizeBytes
+                )
             }
+            return DownloadReceipt(actualSize, sha256(destination))
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private fun validateApk(
@@ -210,7 +248,6 @@ object ApkInstaller {
                 "A versão do APK não corresponde à atualização anunciada."
             )
         }
-
         if (archiveVersionCode <= installedVersionCode) {
             return ApkInstallRequestResult.Failed("O APK baixado não é mais novo que o app instalado.")
         }
@@ -225,8 +262,8 @@ object ApkInstaller {
         if (installedCertificates.intersect(archiveCertificates).isEmpty()) {
             return ApkInstallRequestResult.Failed(
                 message = "Esta instalação usa uma chave antiga incompatível. " +
-                    "Faça uma única reinstalação pela versão oficial; as próximas atualizações " +
-                    "serão instaladas normalmente.",
+                    "Baixe a versão oficial pelo navegador, desinstale esta versão e instale " +
+                    "o arquivo baixado. Isso será necessário apenas uma vez.",
                 requiresOneTimeReinstall = true
             )
         }
@@ -234,13 +271,18 @@ object ApkInstaller {
         return null
     }
 
-    private fun submitInstall(context: Context, apkFile: File): ApkInstallRequestResult {
+    private fun submitInstall(
+        context: Context,
+        apkFile: File,
+        versionCode: Int,
+        versionName: String
+    ): ApkInstallRequestResult {
         val packageInstaller = context.packageManager.packageInstaller
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
             setAppPackageName(context.packageName)
             setSize(apkFile.length())
             setInstallReason(PackageManager.INSTALL_REASON_USER)
-            setOriginatingUri(Uri.parse("https://tpolltech.github.io/tpoll_android_scanner/"))
+            setOriginatingUri(Uri.parse("https://github.com/TPollTech/tpoll_android_scanner/releases"))
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
             }
@@ -259,6 +301,8 @@ object ApkInstaller {
 
                 val statusIntent = Intent(context, UpdateInstallReceiver::class.java).apply {
                     action = ACTION_INSTALL_STATUS
+                    putExtra(EXTRA_VERSION_CODE, versionCode)
+                    putExtra(EXTRA_VERSION_NAME, versionName)
                 }
                 val statusPendingIntent = PendingIntent.getBroadcast(
                     context,
@@ -282,6 +326,9 @@ object ApkInstaller {
             )
         }
     }
+
+    private fun extractVersionName(context: Context, apkFile: File): String =
+        getArchivePackageInfo(context.packageManager, apkFile)?.versionName.orEmpty()
 
     private fun getArchivePackageInfo(packageManager: PackageManager, apkFile: File): PackageInfo? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -339,4 +386,8 @@ object ApkInstaller {
             @Suppress("DEPRECATION")
             versionCode.toLong()
         }
+
+    private data class DownloadReceipt(val bytes: Long, val sha256: String)
+
+    private class DownloadException(message: String, val retryable: Boolean) : Exception(message)
 }

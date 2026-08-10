@@ -16,7 +16,7 @@ certificado sem gravá-los no repositório.
 cd android_app
 keytool -genkeypair -v `
   -keystore release.keystore `
-  -alias tpoll-release `
+  -alias tpoll `
   -keyalg RSA `
   -keysize 4096 `
   -validity 10000
@@ -35,7 +35,7 @@ Adicione estas propriedades ao arquivo pessoal
 ```properties
 RELEASE_STORE_FILE=C:/Projetos git/tpoll_android_scanner/android_app/release.keystore
 RELEASE_STORE_PASSWORD=SENHA_DO_ARQUIVO
-RELEASE_KEY_ALIAS=tpoll-release
+RELEASE_KEY_ALIAS=tpoll
 RELEASE_KEY_PASSWORD=SENHA_DA_CHAVE
 ```
 
@@ -51,7 +51,7 @@ cd android_app
 Veja a impressão digital pública da chave:
 
 ```powershell
-keytool -list -v -keystore android_app\release.keystore -alias tpoll-release
+keytool -list -v -keystore android_app\release.keystore -alias tpoll
 ```
 
 Copie o valor `SHA256` e configure os cinco secrets abaixo no repositório. O
@@ -79,7 +79,33 @@ Secrets obrigatórios:
 O workflow valida o alias, recusa certificados `Android Debug` e compara o
 certificado do APK pronto com `RELEASE_CERT_SHA256` antes de publicar.
 
-## 4. Migração das versões antigas
+O certificado oficial atual tem SHA-256 público:
+
+```text
+603A48C1B31271FE37CF0502F083A741CF5532F170A3FA3617F48CB6A5F0B6D5
+```
+
+Compare esse valor com o APK instalado e com cada artefato novo. A impressão
+digital não é secreta; a chave privada e as senhas são.
+
+## 4. Processo automático de publicação
+
+Um push de código na `main` executa o workflow de produção. Ele:
+
+1. calcula o próximo `versionCode` e a próxima versão semântica;
+2. executa testes, lint, R8 e `assembleRelease`;
+3. valida pacote, versão, certificado, tamanho e SHA-256;
+4. baixa o APK público anterior, instala-o em um emulador e executa
+   `adb install -r` com o APK novo;
+5. abre o app atualizado no emulador;
+6. cria a GitHub Release imutável `vX.Y.Z`;
+7. publica `update.json` por último.
+
+Se qualquer etapa falhar, o manifesto público não muda. O log é anexado ao
+Actions e não é commitado. `TPollScanner-release.apk` e `BUILD_FAILURE.txt`
+deixaram de ser artefatos versionados; a fonte oficial do APK é a GitHub Release.
+
+## 5. Migração das versões antigas
 
 As versões 1.8.3, 1.8.4 e 1.8.5 publicadas pelo workflow foram assinadas por
 chaves de debug diferentes. Como as chaves privadas temporárias dos runners não

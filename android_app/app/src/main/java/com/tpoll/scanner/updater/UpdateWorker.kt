@@ -3,7 +3,6 @@ package com.tpoll.scanner.updater
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.tpoll.scanner.notifications.NotificationHelper
 
 class UpdateWorker(
     context: Context,
@@ -18,42 +17,45 @@ class UpdateWorker(
             return Result.success()
         }
 
-        UpdateChecker.init(applicationContext)
-        return when (val update = UpdateChecker().checkForUpdatesWithRetry(applicationContext)) {
-            is UpdateResult.Available -> install(update.info)
-            is UpdateResult.UpToDate -> Result.success()
-            is UpdateResult.Error -> if (runAttemptCount < 3) Result.retry() else Result.failure()
-        }
-    }
-
-    private suspend fun install(info: UpdateInfo): Result {
-        val notificationHelper = NotificationHelper(applicationContext)
-        if (!ApkInstaller.canRequestPackageInstalls(applicationContext)) {
-            notificationHelper.showUpdatePermissionRequired(info.version_name)
-            return Result.success()
-        }
-
-        return when (
-            val install = ApkInstaller.downloadAndInstall(
-                context = applicationContext,
-                apkUrl = info.apk_url.ifEmpty { info.download_url },
-                expectedVersionCode = info.version_code,
-                expectedSha256 = info.sha256
-            )
-        ) {
-            is ApkInstallRequestResult.Submitted -> Result.success()
-            is ApkInstallRequestResult.PermissionRequired -> {
-                notificationHelper.showUpdatePermissionRequired(info.version_name)
+        UpdateStateStore.write(applicationContext, UpdatePhase.CHECKING)
+        return when (val update = UpdateChecker(applicationContext).checkForUpdates()) {
+            is UpdateResult.Available -> {
+                UpdateStateStore.write(
+                    context = applicationContext,
+                    phase = UpdatePhase.AVAILABLE,
+                    versionCode = update.info.version_code,
+                    versionName = update.info.version_name
+                )
+                UpdateScheduler.enqueueDownload(applicationContext, update.info)
                 Result.success()
             }
-            is ApkInstallRequestResult.Failed -> {
-                notificationHelper.showUpdateInstallFailed(install.message)
-                if (runAttemptCount < 2 && !install.requiresOneTimeReinstall) {
+
+            is UpdateResult.UpToDate -> {
+                UpdateStateStore.write(
+                    context = applicationContext,
+                    phase = UpdatePhase.IDLE,
+                    versionCode = update.installedVersion.code.toInt(),
+                    versionName = update.installedVersion.name
+                )
+                Result.success()
+            }
+
+            is UpdateResult.Error -> {
+                if (runAttemptCount < MAX_WORKER_RETRIES) {
                     Result.retry()
                 } else {
-                    Result.failure()
+                    UpdateStateStore.write(
+                        context = applicationContext,
+                        phase = UpdatePhase.FAILED,
+                        message = update.message
+                    )
+                    Result.success()
                 }
             }
         }
+    }
+
+    companion object {
+        private const val MAX_WORKER_RETRIES = 3
     }
 }

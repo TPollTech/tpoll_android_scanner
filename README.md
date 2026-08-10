@@ -91,13 +91,36 @@ Sempre que houver limpeza/exclusão, o fluxo deve ser:
 
 ```bat
 cd android_app
-gradlew assembleRelease
+gradlew clean testReleaseUnitTest lintRelease assembleRelease
 ```
 
 Builds `release` exigem a chave definitiva e nunca usam chave de debug. Consulte
 [`RELEASE_SIGNING.md`](RELEASE_SIGNING.md) para criar a chave uma única vez,
 configurar os secrets do GitHub Actions e entender a migração das versões
 antigas.
+
+## Publicação e atualização
+
+O APK de produção é sempre o `release` assinado. A publicação oficial acontece
+no GitHub Actions quando um commit de código chega à `main`:
+
+1. executa testes, lint e build `release`;
+2. confere pacote, versão, SHA-256 e certificado;
+3. instala a versão pública anterior em um emulador Android e atualiza por cima;
+4. cria uma GitHub Release imutável com o novo APK;
+5. publica `update.json` por último, somente depois de todas as validações.
+
+O APK na raiz do repositório não é mais a fonte de distribuição. A página de
+download usa sempre o ativo `TPollScanner-release.apk` da GitHub Release mais
+recente. Falhas de build ficam no resumo e em um artefato temporário do Actions;
+elas não geram commits no código.
+
+No app, a verificação roda em segundo plano. O download pesado espera uma rede
+não tarifada, bateria e armazenamento adequados, valida tamanho, hash, pacote,
+versão e assinatura e então envia o APK ao instalador do Android. Em aparelhos
+comuns o próprio Android ainda pode exigir a permissão “instalar apps
+desconhecidos” ou uma confirmação final; instalação totalmente silenciosa só é
+garantida em cenários gerenciados ou por uma loja como a Google Play.
 
 ## Personalização das regras
 

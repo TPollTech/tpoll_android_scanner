@@ -90,7 +90,10 @@ import com.tpoll.scanner.ui.theme.LowRiskColor
 import com.tpoll.scanner.ui.theme.MediumRiskColor
 import com.tpoll.scanner.updater.UpdateChecker
 import com.tpoll.scanner.updater.UpdateDialog
+import com.tpoll.scanner.updater.UpdatePhase
 import com.tpoll.scanner.updater.UpdateResult
+import com.tpoll.scanner.updater.UpdateScheduler
+import com.tpoll.scanner.updater.UpdateStateStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -137,12 +140,33 @@ fun DashboardScreen(
     }
 
     LaunchedEffect(Unit) {
-        val checker = UpdateChecker()
         val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
         val lastSeenVersion = prefs.getInt("last_seen_version_code", 0)
-        val result = checker.checkForUpdatesWithRetry(context)
-        if (result is UpdateResult.Available && result.info.version_code > lastSeenVersion) {
+        val storedState = UpdateStateStore.read(context)
+        val storedUpdateAvailable = storedState.versionCode > lastSeenVersion &&
+            storedState.phase in setOf(
+                UpdatePhase.AVAILABLE,
+                UpdatePhase.WAITING_FOR_WIFI,
+                UpdatePhase.DOWNLOADING,
+                UpdatePhase.PERMISSION_REQUIRED,
+                UpdatePhase.CONFIRMATION_REQUIRED
+            )
+        if (storedUpdateAvailable) {
             showUpdateDialog = true
+        } else if (
+            UpdateScheduler.isAutomaticUpdatesEnabled(context) &&
+            UpdateChecker.shouldCheck(context)
+        ) {
+            val result = UpdateChecker(context.applicationContext).checkForUpdates()
+            if (result is UpdateResult.Available && result.info.version_code > lastSeenVersion) {
+                UpdateStateStore.write(
+                    context = context,
+                    phase = UpdatePhase.AVAILABLE,
+                    versionCode = result.info.version_code,
+                    versionName = result.info.version_name
+                )
+                showUpdateDialog = true
+            }
         }
     }
 
@@ -638,7 +662,7 @@ private fun QuickActionCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(gradient.copy(alpha = 0.08f))
+                .background(brush = gradient, alpha = 0.08f)
                 .padding(16.dp)
         ) {
             Column {
@@ -686,7 +710,7 @@ private fun GradientStatCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(gradient.copy(alpha = 0.06f))
+                .background(brush = gradient, alpha = 0.06f)
                 .padding(vertical = 14.dp, horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {

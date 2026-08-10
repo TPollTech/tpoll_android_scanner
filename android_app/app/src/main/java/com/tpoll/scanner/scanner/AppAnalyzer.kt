@@ -105,7 +105,11 @@ class AppAnalyzer(private val context: Context) {
         }
 
         val filteredPackages = if (thirdPartyOnly) {
-            packages.filter { it.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM == 0 }
+            packages.filter { packageInfo ->
+                packageInfo.applicationInfo?.let { appInfo ->
+                    appInfo.flags and ApplicationInfo.FLAG_SYSTEM == 0
+                } ?: false
+            }
         } else {
             packages
         }
@@ -128,8 +132,9 @@ class AppAnalyzer(private val context: Context) {
 
     private fun analyzePackage(pkgInfo: android.content.pm.PackageInfo, virusDb: VirusDb): AppFinding {
         val packageName = pkgInfo.packageName
-        val appName = packageManager.getApplicationLabel(pkgInfo.applicationInfo).toString()
-        val apkPath = pkgInfo.applicationInfo.sourceDir ?: ""
+        val appInfo = pkgInfo.applicationInfo
+        val appName = appInfo?.let(packageManager::getApplicationLabel)?.toString() ?: packageName
+        val apkPath = appInfo?.sourceDir.orEmpty()
 
         val installer = getInstaller(packageName)
 

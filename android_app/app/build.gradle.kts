@@ -1,6 +1,9 @@
+import groovy.json.JsonSlurper
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
 
@@ -8,17 +11,29 @@ val releaseStoreFilePath = project.findProperty("RELEASE_STORE_FILE") as String?
 val releaseStorePasswordValue = project.findProperty("RELEASE_STORE_PASSWORD") as String?
 val releaseKeyAliasValue = project.findProperty("RELEASE_KEY_ALIAS") as String?
 val releaseKeyPasswordValue = project.findProperty("RELEASE_KEY_PASSWORD") as String?
+val releaseManifest = JsonSlurper().parse(rootProject.file("../update.json")) as Map<*, *>
+val appVersionCode = providers.gradleProperty("APP_VERSION_CODE")
+    .orNull
+    ?.toIntOrNull()
+    ?: (releaseManifest["version_code"] as Number).toInt()
+val appVersionName = providers.gradleProperty("APP_VERSION_NAME")
+    .orNull
+    ?.takeIf { it.isNotBlank() }
+    ?: releaseManifest["version_name"].toString()
 val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
     !releaseStorePasswordValue.isNullOrBlank() &&
     !releaseKeyAliasValue.isNullOrBlank() &&
     !releaseKeyPasswordValue.isNullOrBlank() &&
     file(releaseStoreFilePath).exists()
 
-val releaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
-    taskName.substringAfterLast(':').contains("release", ignoreCase = true)
+val signedReleaseTaskRequested = gradle.startParameter.taskNames.any { taskName ->
+    val simpleTaskName = taskName.substringAfterLast(':').lowercase()
+    simpleTaskName == "assemblerelease" ||
+        simpleTaskName == "bundlerelease" ||
+        simpleTaskName == "packagerelease"
 }
 
-if (releaseTaskRequested && !hasReleaseSigning) {
+if (signedReleaseTaskRequested && !hasReleaseSigning) {
     throw GradleException(
         "Release signing is required. Configure RELEASE_STORE_FILE, " +
             "RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS and RELEASE_KEY_PASSWORD. " +
@@ -28,14 +43,14 @@ if (releaseTaskRequested && !hasReleaseSigning) {
 
 android {
     namespace = "com.tpoll.scanner"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.tpoll.scanner"
         minSdk = 26
-        targetSdk = 34
-        versionCode = 24
-        versionName = "1.8.11"
+        targetSdk = 36
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -81,10 +96,6 @@ android {
         compose = true
     }
 
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -107,7 +118,7 @@ dependencies {
 
     implementation("androidx.navigation:navigation-compose:2.7.7")
 
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
@@ -116,6 +127,8 @@ dependencies {
     implementation("com.google.code.gson:gson:2.11.0")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    testImplementation("junit:junit:4.13.2")
 
     implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
     implementation("com.google.firebase:firebase-auth")

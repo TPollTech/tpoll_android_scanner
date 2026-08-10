@@ -6,6 +6,8 @@ package com.tpoll.scanner.updater
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,12 +57,43 @@ fun UpdateDialog(
     var permissionRequired by remember { mutableStateOf(false) }
     var installSubmitted by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val checker = remember { UpdateChecker() }
+    val checker = remember(context) { UpdateChecker(context.applicationContext) }
+    val installPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (ApkInstaller.canRequestPackageInstalls(context)) {
+            permissionRequired = false
+        }
+    }
 
     LaunchedEffect(Unit) {
+        UpdateStateStore.write(context, UpdatePhase.CHECKING)
         result = checker.checkForUpdates()
+        when (val checked = result) {
+            is UpdateResult.Available -> UpdateStateStore.write(
+                context = context,
+                phase = UpdatePhase.AVAILABLE,
+                versionCode = checked.info.version_code,
+                versionName = checked.info.version_name
+            )
+            is UpdateResult.UpToDate -> UpdateStateStore.write(
+                context = context,
+                phase = UpdatePhase.IDLE,
+                versionCode = checked.installedVersion.code.toInt(),
+                versionName = checked.installedVersion.name
+            )
+            is UpdateResult.Error -> UpdateStateStore.write(
+                context = context,
+                phase = UpdatePhase.FAILED,
+                message = checked.message
+            )
+            null -> Unit
+        }
         isChecking = false
     }
+
+    val available = result as? UpdateResult.Available
+    val mandatoryUpdate = available?.info?.isMandatoryFor(available.installedVersion.code) == true
 
     fun dismissWithVersion() {
         val versionCode = (result as? UpdateResult.Available)?.info?.version_code ?: 0
@@ -68,7 +101,7 @@ fun UpdateDialog(
     }
 
     AlertDialog(
-        onDismissRequest = { if (!isInstalling) dismissWithVersion() },
+        onDismissRequest = { if (!isInstalling && !mandatoryUpdate) dismissWithVersion() },
         icon = {
             Icon(
                 Icons.Default.NewReleases,
@@ -103,7 +136,8 @@ fun UpdateDialog(
                     (result as UpdateResult.Available).info
                 )
                 result is UpdateResult.UpToDate -> Text(
-                    "Seu app está na versão mais recente (${UpdateInfo.currentVersionName})."
+                    "Seu app está na versão mais recente " +
+                        "(${(result as UpdateResult.UpToDate).installedVersion.name})."
                 )
                 result is UpdateResult.Error -> ErrorContent(
                     (result as UpdateResult.Error).message
@@ -120,18 +154,51 @@ fun UpdateDialog(
                     val info = (result as UpdateResult.Available).info
                     Button(onClick = {
                         isInstalling = true
+                        UpdateStateStore.write(
+                            context = context,
+                            phase = UpdatePhase.DOWNLOADING,
+                            versionCode = info.version_code,
+                            versionName = info.version_name
+                        )
                         scope.launch {
                             when (
                                 val install = ApkInstaller.downloadAndInstall(
                                     context = context,
-                                    apkUrl = info.apk_url.ifEmpty { info.download_url },
+                                    apkUrl = info.apk_url,
                                     expectedVersionCode = info.version_code,
-                                    expectedSha256 = info.sha256
+                                    expectedSha256 = info.sha256,
+                                    expectedSizeBytes = info.size_bytes
                                 )
                             ) {
-                                is ApkInstallRequestResult.Submitted -> installSubmitted = true
-                                is ApkInstallRequestResult.PermissionRequired -> permissionRequired = true
-                                is ApkInstallRequestResult.Failed -> installFailure = install
+                                is ApkInstallRequestResult.Submitted -> {
+                                    installSubmitted = true
+                                    UpdateStateStore.write(
+                                        context = context,
+                                        phase = UpdatePhase.INSTALL_SUBMITTED,
+                                        versionCode = info.version_code,
+                                        versionName = info.version_name
+                                    )
+                                }
+                                is ApkInstallRequestResult.PermissionRequired -> {
+                                    permissionRequired = true
+                                    UpdateStateStore.write(
+                                        context = context,
+                                        phase = UpdatePhase.PERMISSION_REQUIRED,
+                                        versionCode = info.version_code,
+                                        versionName = info.version_name,
+                                        message = "Permissão necessária para instalar a atualização."
+                                    )
+                                }
+                                is ApkInstallRequestResult.Failed -> {
+                                    installFailure = install
+                                    UpdateStateStore.write(
+                                        context = context,
+                                        phase = UpdatePhase.FAILED,
+                                        versionCode = info.version_code,
+                                        versionName = info.version_name,
+                                        message = install.message
+                                    )
+                                }
                             }
                             isInstalling = false
                         }
@@ -140,31 +207,29 @@ fun UpdateDialog(
                     }
                 }
                 permissionRequired -> {
-                    Button(onClick = { ApkInstaller.openInstallPermissionSettings(context) }) {
+                    Button(onClick = {
+                        installPermissionLauncher.launch(
+                            Intent(
+                                android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:${context.packageName}")
+                            )
+                        )
+                    }) {
                         Text("Permitir")
                     }
                 }
                 installFailure?.requiresOneTimeReinstall == true -> {
-                    val apkPath = installFailure!!.apkPath
-                    if (apkPath != null) {
-                        Button(onClick = {
-                            ApkInstaller.openApkFile(context, apkPath)
-                        }) {
-                            Text("Instalar versão oficial")
-                        }
-                    } else {
-                        OutlinedButton(onClick = {
-                            val pageUrl = (result as? UpdateResult.Available)
-                                ?.info
-                                ?.download_url
-                                .orEmpty()
-                            context.startActivity(
-                                Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
-                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            )
-                        }) {
-                            Text("Baixar versão oficial")
-                        }
+                    OutlinedButton(onClick = {
+                        val pageUrl = (result as? UpdateResult.Available)
+                            ?.info
+                            ?.download_url
+                            .orEmpty()
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }) {
+                        Text("Abrir download oficial")
                     }
                 }
                 installFailure != null -> {
@@ -183,7 +248,7 @@ fun UpdateDialog(
             }
         },
         dismissButton = {
-            if (!isInstalling) {
+            if (!isInstalling && !mandatoryUpdate) {
                 TextButton(onClick = { dismissWithVersion() }) {
                     Text(
                         if (
@@ -265,8 +330,9 @@ private fun FailureContent(failure: ApkInstallRequestResult.Failed) {
         if (failure.requiresOneTimeReinstall) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "A versão já foi baixada. Toque no botão abaixo para instalar. " +
-                    "É necessário apenas desta vez; as próximas atualizações serão automáticas.",
+                "Abra o download oficial no navegador e baixe o APK. Depois, desinstale " +
+                    "esta versão antiga e instale o arquivo baixado. As próximas atualizações " +
+                    "usarão a assinatura estável.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
@@ -289,6 +355,8 @@ private fun CheckingContent() {
 
 @Composable
 private fun AvailableContent(info: UpdateInfo) {
+    val context = LocalContext.current
+    val installedVersion = remember(context) { InstalledAppVersion.read(context) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,7 +369,7 @@ private fun AvailableContent(info: UpdateInfo) {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Sua versão: ${UpdateInfo.currentVersionName}",
+            text = "Sua versão: ${installedVersion.name}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
         )

@@ -27,9 +27,10 @@ import com.tpoll.scanner.BootReceiver
 import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.ui.theme.ThemeManager
 import com.tpoll.scanner.ui.theme.ThemeMode
-import com.tpoll.scanner.updater.UpdateChecker
+import com.tpoll.scanner.updater.InstalledAppVersion
 import com.tpoll.scanner.updater.UpdateDialog
 import com.tpoll.scanner.updater.UpdateScheduler
+import com.tpoll.scanner.updater.UpdateStateStore
 import java.security.MessageDigest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -40,6 +41,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("scan_settings", Context.MODE_PRIVATE) }
+    val installedVersion = remember(context) { InstalledAppVersion.read(context) }
 
     var autoRemoveHigh by remember { mutableStateOf(prefs.getBoolean("auto_remove_high", true)) }
     var autoRemoveMedium by remember { mutableStateOf(prefs.getBoolean("auto_remove_medium", false)) }
@@ -48,10 +50,12 @@ fun SettingsScreen(
     var automaticUpdatesEnabled by remember {
         mutableStateOf(UpdateScheduler.isAutomaticUpdatesEnabled(context))
     }
+    var updateStatus by remember { mutableStateOf(UpdateStateStore.summary(context)) }
 
     if (showUpdateDialog) {
         UpdateDialog(onDismiss = { seenVersionCode ->
             showUpdateDialog = false
+            updateStatus = UpdateStateStore.summary(context)
             if (seenVersionCode > 0) {
                 context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
                     .edit()
@@ -456,6 +460,7 @@ fun SettingsScreen(
                         onCheckedChange = { enabled ->
                             automaticUpdatesEnabled = enabled
                             UpdateScheduler.setAutomaticUpdatesEnabled(context, enabled)
+                            updateStatus = UpdateStateStore.summary(context)
                         }
                     )
                 }
@@ -470,7 +475,7 @@ fun SettingsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Versão do app")
                         Text(
-                            "v${com.tpoll.scanner.updater.UpdateInfo.currentVersionName}",
+                            "v${installedVersion.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
@@ -487,6 +492,14 @@ fun SettingsScreen(
                         Text("Verificar")
                     }
                 }
+                updateStatus?.let { status ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
 
@@ -501,7 +514,7 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "TPoll Scanner v${com.tpoll.scanner.updater.UpdateInfo.currentVersionName}",
+                    text = "TPoll Scanner v${installedVersion.name}",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(

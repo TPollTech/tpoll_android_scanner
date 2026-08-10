@@ -6,11 +6,11 @@ package com.tpoll.scanner.protection
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import java.security.MessageDigest
 
 object LicenseValidator {
 
-    private const val EXPECTED_SIGNATURE = "tpoll_release_2026"
     private const val PREFS_NAME = "license_prefs"
     private const val KEY_VERIFIED = "signature_verified"
     private const val KEY_FIRST_CHECK = "first_check_done"
@@ -33,11 +33,30 @@ object LicenseValidator {
 
     private fun verifySignature(context: Context): Boolean {
         return try {
-            val info = context.packageManager.getPackageInfo(
-                context.packageName,
-                PackageManager.GET_SIGNATURES
-            )
-            val cert = info.signatures.firstOrNull() ?: return false
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.GET_SIGNING_CERTIFICATES
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(
+                    context.packageName,
+                    PackageManager.GET_SIGNATURES
+                )
+            }
+            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val signingInfo = info.signingInfo ?: return false
+                if (signingInfo.hasMultipleSigners()) {
+                    signingInfo.apkContentsSigners
+                } else {
+                    signingInfo.signingCertificateHistory
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                info.signatures
+            }
+            val cert = signatures?.firstOrNull() ?: return false
             val digest = MessageDigest.getInstance("SHA-256")
             val hash = digest.digest(cert.toByteArray())
             val hashHex = hash.joinToString("") { "%02x".format(it) }
