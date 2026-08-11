@@ -3,6 +3,7 @@ package com.tpoll.scanner.updater
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.tpoll.scanner.notifications.NotificationHelper
 
 class UpdateDownloadWorker(
@@ -15,77 +16,115 @@ class UpdateDownloadWorker(
             return Result.success()
         }
 
-        val versionCode = inputData.getInt(UpdateScheduler.DATA_VERSION_CODE, 0)
-        val versionName = inputData.getString(UpdateScheduler.DATA_VERSION_NAME).orEmpty()
-        val apkUrl = inputData.getString(UpdateScheduler.DATA_APK_URL).orEmpty()
-        val sha256 = inputData.getString(UpdateScheduler.DATA_SHA256).orEmpty()
-        val sizeBytes = inputData.getLong(UpdateScheduler.DATA_SIZE_BYTES, 0L)
-        if (versionCode <= 0 || versionName.isBlank() || apkUrl.isBlank()) {
+        val info = UpdateInfo(
+            versionCode = inputData.getInt(UpdateScheduler.DATA_VERSION_CODE, 0),
+            versionName = inputData.getString(UpdateScheduler.DATA_VERSION_NAME).orEmpty(),
+            apkUrl = inputData.getString(UpdateScheduler.DATA_APK_URL).orEmpty(),
+            sha256 = inputData.getString(UpdateScheduler.DATA_SHA256).orEmpty(),
+            sizeBytes = inputData.getLong(UpdateScheduler.DATA_SIZE_BYTES, 0L),
+            downloadUrl = inputData.getString(UpdateScheduler.DATA_DOWNLOAD_URL).orEmpty(),
+            releaseNotes = inputData.getString(UpdateScheduler.DATA_RELEASE_NOTES)
+                .orEmpty()
+                .lineSequence()
+                .filter(String::isNotBlank)
+                .toList(),
+            mandatory = inputData.getBoolean(UpdateScheduler.DATA_MANDATORY, false),
+            minVersionCode = inputData.getInt(UpdateScheduler.DATA_MIN_VERSION_CODE, 1)
+        )
+        UpdateManifestValidator.error(info)?.let { message ->
+            UpdateStateStore.write(
+                context = applicationContext,
+                phase = UpdatePhase.FAILED,
+                message = message
+            )
             return Result.failure()
         }
 
         val notificationHelper = NotificationHelper(applicationContext)
-        if (!ApkInstaller.canRequestPackageInstalls(applicationContext)) {
-            UpdateStateStore.write(
-                context = applicationContext,
-                phase = UpdatePhase.PERMISSION_REQUIRED,
-                versionCode = versionCode,
-                versionName = versionName,
-                message = "Permissão necessária para instalar a atualização."
-            )
-            notificationHelper.showUpdatePermissionRequired(versionName)
-            return Result.success()
-        }
-
         UpdateStateStore.write(
             context = applicationContext,
             phase = UpdatePhase.DOWNLOADING,
-            versionCode = versionCode,
-            versionName = versionName
+            versionCode = info.versionCode,
+            versionName = info.versionName,
+            totalBytes = info.sizeBytes
         )
+
+        var lastPersistedPercent = -1
         return when (
-            val install = ApkInstaller.downloadAndInstall(
+            val preparation = ApkInstaller.downloadAndValidate(
                 context = applicationContext,
-                apkUrl = apkUrl,
-                expectedVersionCode = versionCode,
-                expectedSha256 = sha256,
-                expectedSizeBytes = sizeBytes
+                info = info,
+                onProgress = { progress ->
+                    val percent = (progress.fraction * 100f).toInt().coerceIn(0, 100)
+                    setProgress(
+                        workDataOf(
+                            PROGRESS_PERCENT to percent,
+                            PROGRESS_DOWNLOADED_BYTES to progress.downloadedBytes,
+                            PROGRESS_TOTAL_BYTES to progress.totalBytes
+                        )
+                    )
+                    if (percent != lastPersistedPercent) {
+                        lastPersistedPercent = percent
+                        UpdateStateStore.write(
+                            context = applicationContext,
+                            phase = UpdatePhase.DOWNLOADING,
+                            versionCode = info.versionCode,
+                            versionName = info.versionName,
+                            downloadedBytes = progress.downloadedBytes,
+                            totalBytes = progress.totalBytes
+                        )
+                    }
+                }
             )
         ) {
-            is ApkInstallRequestResult.Submitted -> {
-                UpdateStateStore.write(
-                    context = applicationContext,
-                    phase = UpdatePhase.INSTALL_SUBMITTED,
-                    versionCode = versionCode,
-                    versionName = versionName
-                )
+            is ApkPreparationResult.Ready -> {
+                if (!ApkInstaller.canRequestPackageInstalls(applicationContext)) {
+                    UpdateStateStore.write(
+                        context = applicationContext,
+                        phase = UpdatePhase.PERMISSION_REQUIRED,
+                        versionCode = info.versionCode,
+                        versionName = info.versionName,
+                        message = "Autorize esta fonte para continuar a instalação."
+                    )
+                    notificationHelper.showUpdatePermissionRequired(info.versionName)
+                } else {
+                    val installIntent = ApkInstaller.createInstallerIntent(applicationContext, info)
+                    if (installIntent == null) {
+                        val message = "O APK validado não está mais disponível."
+                        UpdateStateStore.write(
+                            context = applicationContext,
+                            phase = UpdatePhase.FAILED,
+                            versionCode = info.versionCode,
+                            versionName = info.versionName,
+                            message = message
+                        )
+                        notificationHelper.showUpdateInstallFailed(message)
+                        return Result.failure()
+                    }
+                    UpdateStateStore.write(
+                        context = applicationContext,
+                        phase = UpdatePhase.READY_TO_INSTALL,
+                        versionCode = info.versionCode,
+                        versionName = info.versionName,
+                        message = "Download validado. Toque para abrir o instalador do Android."
+                    )
+                    notificationHelper.showUpdateReadyToInstall(installIntent)
+                }
                 Result.success()
             }
 
-            is ApkInstallRequestResult.PermissionRequired -> {
-                UpdateStateStore.write(
-                    context = applicationContext,
-                    phase = UpdatePhase.PERMISSION_REQUIRED,
-                    versionCode = versionCode,
-                    versionName = versionName,
-                    message = "Permissão necessária para instalar a atualização."
-                )
-                notificationHelper.showUpdatePermissionRequired(versionName)
-                Result.success()
-            }
-
-            is ApkInstallRequestResult.Failed -> {
-                if (install.retryable && runAttemptCount < MAX_WORKER_RETRIES) {
+            is ApkPreparationResult.Failed -> {
+                if (preparation.retryable && runAttemptCount < MAX_WORKER_RETRIES) {
                     Result.retry()
                 } else {
                     UpdateStateStore.write(
                         context = applicationContext,
                         phase = UpdatePhase.FAILED,
-                        versionCode = versionCode,
-                        versionName = versionName,
-                        message = install.message
+                        versionCode = info.versionCode,
+                        versionName = info.versionName,
+                        message = preparation.message
                     )
-                    notificationHelper.showUpdateInstallFailed(install.message)
+                    notificationHelper.showUpdateInstallFailed(preparation.message)
                     Result.success()
                 }
             }
@@ -93,6 +132,9 @@ class UpdateDownloadWorker(
     }
 
     companion object {
+        const val PROGRESS_PERCENT = "progress_percent"
+        const val PROGRESS_DOWNLOADED_BYTES = "progress_downloaded_bytes"
+        const val PROGRESS_TOTAL_BYTES = "progress_total_bytes"
         private const val MAX_WORKER_RETRIES = 3
     }
 }

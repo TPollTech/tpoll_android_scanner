@@ -12,14 +12,18 @@ val releaseStorePasswordValue = project.findProperty("RELEASE_STORE_PASSWORD") a
 val releaseKeyAliasValue = project.findProperty("RELEASE_KEY_ALIAS") as String?
 val releaseKeyPasswordValue = project.findProperty("RELEASE_KEY_PASSWORD") as String?
 val releaseManifest = JsonSlurper().parse(rootProject.file("../update.json")) as Map<*, *>
+// compatibility: snake_case remains in the public manifest while clients <= 1.8.13 are supported.
+fun manifestValue(canonical: String, legacy: String): Any =
+    releaseManifest[canonical] ?: releaseManifest[legacy]
+        ?: throw GradleException("Missing $canonical in update.json")
 val appVersionCode = providers.gradleProperty("APP_VERSION_CODE")
     .orNull
     ?.toIntOrNull()
-    ?: (releaseManifest["version_code"] as Number).toInt()
+    ?: (manifestValue("versionCode", "version_code") as Number).toInt()
 val appVersionName = providers.gradleProperty("APP_VERSION_NAME")
     .orNull
     ?.takeIf { it.isNotBlank() }
-    ?: releaseManifest["version_name"].toString()
+    ?: manifestValue("versionName", "version_name").toString()
 val hasReleaseSigning = !releaseStoreFilePath.isNullOrBlank() &&
     !releaseStorePasswordValue.isNullOrBlank() &&
     !releaseKeyAliasValue.isNullOrBlank() &&

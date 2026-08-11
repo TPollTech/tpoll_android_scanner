@@ -88,12 +88,6 @@ import com.tpoll.scanner.ui.theme.HighRiskColor
 import com.tpoll.scanner.ui.theme.LocalExtendedColors
 import com.tpoll.scanner.ui.theme.LowRiskColor
 import com.tpoll.scanner.ui.theme.MediumRiskColor
-import com.tpoll.scanner.updater.UpdateChecker
-import com.tpoll.scanner.updater.UpdateDialog
-import com.tpoll.scanner.updater.UpdatePhase
-import com.tpoll.scanner.updater.UpdateResult
-import com.tpoll.scanner.updater.UpdateScheduler
-import com.tpoll.scanner.updater.UpdateStateStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -126,7 +120,6 @@ fun DashboardScreen(
     var shieldThreats by remember { mutableStateOf(protectionPrefs.getInt("threat_count", 0)) }
     var malwareCount by remember { mutableStateOf(protectionPrefs.getInt("malware_count", 0)) }
     var isShieldScanning by remember { mutableStateOf(false) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
     var quarantineCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
@@ -136,37 +129,6 @@ fun DashboardScreen(
             shieldActive = ShieldService.isRunning()
             shieldThreats = protectionPrefs.getInt("threat_count", 0)
             malwareCount = protectionPrefs.getInt("malware_count", 0)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
-        val lastSeenVersion = prefs.getInt("last_seen_version_code", 0)
-        val storedState = UpdateStateStore.read(context)
-        val storedUpdateAvailable = storedState.versionCode > lastSeenVersion &&
-            storedState.phase in setOf(
-                UpdatePhase.AVAILABLE,
-                UpdatePhase.WAITING_FOR_WIFI,
-                UpdatePhase.DOWNLOADING,
-                UpdatePhase.PERMISSION_REQUIRED,
-                UpdatePhase.CONFIRMATION_REQUIRED
-            )
-        if (storedUpdateAvailable) {
-            showUpdateDialog = true
-        } else if (
-            UpdateScheduler.isAutomaticUpdatesEnabled(context) &&
-            UpdateChecker.shouldCheck(context)
-        ) {
-            val result = UpdateChecker(context.applicationContext).checkForUpdates()
-            if (result is UpdateResult.Available && result.info.version_code > lastSeenVersion) {
-                UpdateStateStore.write(
-                    context = context,
-                    phase = UpdatePhase.AVAILABLE,
-                    versionCode = result.info.version_code,
-                    versionName = result.info.version_name
-                )
-                showUpdateDialog = true
-            }
         }
     }
 
@@ -523,17 +485,6 @@ fun DashboardScreen(
         item { Spacer(modifier = Modifier.height(8.dp)) }
     }
 
-    if (showUpdateDialog) {
-        UpdateDialog(onDismiss = { seenVersionCode ->
-            showUpdateDialog = false
-            if (seenVersionCode > 0) {
-                context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
-                    .edit()
-                    .putInt("last_seen_version_code", seenVersionCode)
-                    .apply()
-            }
-        })
-    }
 }
 
 @Composable

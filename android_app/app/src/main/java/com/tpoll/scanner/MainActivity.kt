@@ -68,9 +68,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,12 +81,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.FirebaseApp
@@ -100,6 +107,16 @@ import com.tpoll.scanner.ui.screens.SettingsScreen
 import com.tpoll.scanner.ui.theme.AppGradients
 import com.tpoll.scanner.ui.theme.LocalExtendedColors
 import com.tpoll.scanner.ui.theme.TPollScannerTheme
+import com.tpoll.scanner.protection.ShieldService
+import com.tpoll.scanner.updater.InstalledAppVersion
+import com.tpoll.scanner.updater.UpdateChecker
+import com.tpoll.scanner.updater.UpdateDialog
+import com.tpoll.scanner.updater.UpdatePhase
+import com.tpoll.scanner.updater.UpdateResult
+import com.tpoll.scanner.updater.UpdateScheduler
+import com.tpoll.scanner.updater.UpdateStateStore
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -139,14 +156,19 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             TPollScannerTheme {
-                if (currentUser.value == null && !loginSkipped.value) {
-                    LoginScreen(
-                        errorMessage = loginErrorMessage.value,
-                        onGoogleLogin = ::openGoogleLogin,
-                        onContinueWithoutLogin = ::continueWithoutLogin
-                    )
-                } else {
-                    MainScreen(onSignOut = ::signOut)
+                AppUpdateHost { requestManualUpdateCheck ->
+                    if (currentUser.value == null && !loginSkipped.value) {
+                        LoginScreen(
+                            errorMessage = loginErrorMessage.value,
+                            onGoogleLogin = ::openGoogleLogin,
+                            onContinueWithoutLogin = ::continueWithoutLogin
+                        )
+                    } else {
+                        MainScreen(
+                            onSignOut = ::signOut,
+                            onRequestUpdateCheck = requestManualUpdateCheck
+                        )
+                    }
                 }
             }
         }
@@ -273,6 +295,7 @@ class MainActivity : ComponentActivity() {
 
     private fun checkAndStartScan() {
         if (firebaseReady && currentUser.value == null && !loginSkipped.value) return
+        ShieldService.startIfEnabled(this)
         val prefs = getSharedPreferences("scan_settings", MODE_PRIVATE)
         if (prefs.getBoolean("auto_scan_enabled", true)) BootReceiver.schedulePeriodicScan(this)
     }
@@ -439,7 +462,80 @@ fun LoginScreen(
 }
 
 @Composable
-fun MainScreen(onSignOut: () -> Unit = {}) {
+private fun AppUpdateHost(
+    content: @Composable (requestManualUpdateCheck: () -> Unit) -> Unit
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
+    var showDialog by remember { mutableStateOf(false) }
+    var initialResult by remember { mutableStateOf<UpdateResult?>(null) }
+    var automaticCheckJob by remember { mutableStateOf<Job?>(null) }
+
+    fun checkAutomaticallyIfDue() {
+        if (!UpdateScheduler.isAutomaticUpdatesEnabled(context)) return
+        if (automaticCheckJob?.isActive == true || showDialog) return
+
+        val state = UpdateStateStore.read(context)
+        val preparedUpdateNeedsAttention = state.phase in setOf(
+            UpdatePhase.READY_TO_INSTALL,
+            UpdatePhase.PERMISSION_REQUIRED
+        ) && state.versionCode > InstalledAppVersion.read(context).code
+        if (!preparedUpdateNeedsAttention && !UpdateChecker.shouldCheck(context)) return
+
+        automaticCheckJob = scope.launch {
+            when (val checked = UpdateChecker(context.applicationContext).checkForUpdates()) {
+                is UpdateResult.Available -> {
+                    initialResult = checked
+                    showDialog = true
+                }
+                is UpdateResult.UpToDate -> UpdateStateStore.write(
+                    context = context,
+                    phase = UpdatePhase.IDLE,
+                    versionCode = checked.installedVersion.code.toInt(),
+                    versionName = checked.installedVersion.name
+                )
+                is UpdateResult.Error -> Unit
+            }
+        }
+    }
+
+    fun requestManualUpdateCheck() {
+        automaticCheckJob?.cancel()
+        initialResult = null
+        showDialog = true
+    }
+
+    LaunchedEffect(Unit) {
+        checkAutomaticallyIfDue()
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) checkAutomaticallyIfDue()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    content(::requestManualUpdateCheck)
+
+    if (showDialog) {
+        UpdateDialog(
+            initialResult = initialResult,
+            onDismiss = {
+                showDialog = false
+                initialResult = null
+            }
+        )
+    }
+}
+
+@Composable
+fun MainScreen(
+    onSignOut: () -> Unit = {},
+    onRequestUpdateCheck: () -> Unit = {}
+) {
     var currentScreen by remember { mutableStateOf(Screen.Dashboard) }
     var showQuarantine by remember { mutableStateOf(false) }
     var showPermissions by remember { mutableStateOf(false) }
@@ -519,7 +615,10 @@ fun MainScreen(onSignOut: () -> Unit = {}) {
                 Screen.History -> HistoryScreen()
                 Screen.Health -> HealthScreen()
                 Screen.Premium -> PremiumScreen()
-                Screen.Settings -> SettingsScreen(onSignOut = onSignOut)
+                Screen.Settings -> SettingsScreen(
+                    onSignOut = onSignOut,
+                    onCheckForUpdates = onRequestUpdateCheck
+                )
             }
         }
     }

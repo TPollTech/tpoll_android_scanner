@@ -92,15 +92,27 @@ digital não é secreta; a chave privada e as senhas são.
 
 Um push de código na `main` executa o workflow de produção. Ele:
 
+> A opção **Enable release immutability** precisa permanecer habilitada nas
+> configurações do repositório. O workflow verifica a atestação antes de publicar
+> o manifesto.
+
+`release-config.json` declara a versão, a obrigatoriedade e as notas da próxima
+publicação. Se `versionCode` ou `versionName` não corresponder à próxima versão
+calculada, o processo falha antes de publicar para impedir o reaproveitamento
+acidental de metadados antigos.
+
 1. calcula o próximo `versionCode` e a próxima versão semântica;
 2. executa testes, lint, R8 e `assembleRelease`;
 3. valida pacote, versão, certificado, tamanho e SHA-256;
-4. baixa o APK público anterior, instala-o em um emulador e executa
-   `adb install -r` com o APK novo;
-5. abre o app atualizado no emulador;
-6. cria a GitHub Release imutável `vX.Y.Z` com o arquivo
+4. baixa o APK público anterior, instala-o em um emulador, grava dados e uma
+   configuração de teste e executa `adb install -r` com o APK novo;
+5. abre o app atualizado e confirma que os dados e a configuração permaneceram;
+6. cria primeiro uma release em rascunho, anexa e valida o APK, então publica a
+   GitHub Release imutável `vX.Y.Z` com o arquivo
    `TPollScanner-X.Y.Z-release.apk`;
-7. publica `update.json` por último.
+7. baixa o ativo pela URL pública, revalida tamanho, SHA-256, certificado e a
+   atestação da release imutável;
+8. publica `update.json` por último.
 
 Se qualquer etapa falhar, o manifesto público não muda. O log é anexado ao
 Actions e não é commitado. APKs e `BUILD_FAILURE.txt` não são artefatos do
@@ -120,14 +132,19 @@ versão existente.
 ## Atualização automática no app
 
 - A opção **Atualizar automaticamente** vem habilitada e agenda uma verificação
-  diária com WorkManager.
+  a cada seis horas com WorkManager. Abrir ou retomar o app também verifica se o
+  intervalo já venceu.
 - O download acontece apenas em rede Wi-Fi/não tarifada e com bateria suficiente.
-- Antes da instalação, o app confere HTTPS, pacote, `versionCode` e certificado.
-- No Android 12 ou superior, o app solicita instalação sem interação. O Android
-  ainda pode exigir confirmação conforme a versão e a política do aparelho.
+- Antes da instalação, o app confere conclusão HTTP, tamanho, SHA-256, pacote,
+  `versionCode` e o certificado oficial embutido.
+- O APK fica no cache privado e só é compartilhado com o instalador oficial por
+  `content://`, com permissão temporária de leitura.
+- O Android pode exigir a autorização “Permitir desta fonte” e sempre pode pedir
+  confirmação final. O app não solicita nem promete instalação silenciosa.
 - Quando houver confirmação ou permissão pendente, uma notificação leva o
   usuário à tela correta do sistema.
-- No Android 11 ou anterior, a confirmação de instalação é obrigatória.
+- `update.json` mantém aliases `snake_case` enquanto clientes até a versão 1.8.13
+  forem suportados; os campos canônicos novos usam `camelCase`.
 
 Para atualizações totalmente gerenciadas em aparelhos de consumidores, a opção
 mais previsível é publicar pela Google Play com Play App Signing e atualizações

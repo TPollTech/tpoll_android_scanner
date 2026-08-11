@@ -106,9 +106,12 @@ no GitHub Actions quando um commit de código chega à `main`:
 
 1. executa testes, lint e build `release`;
 2. confere pacote, versão, SHA-256 e certificado;
-3. instala a versão pública anterior em um emulador Android e atualiza por cima;
-4. cria uma GitHub Release imutável com o novo APK;
-5. publica `update.json` por último, somente depois de todas as validações.
+3. instala a versão pública anterior em um emulador Android, grava dados de teste
+   e atualiza por cima, confirmando que arquivos e configurações foram preservados;
+4. cria uma GitHub Release imutável com o novo APK e valida novamente o arquivo
+   baixado pela URL pública;
+5. publica `update.json` por último, somente depois de validar tamanho, hash e
+   certificado do ativo publicado.
 
 O APK na raiz do repositório não é mais a fonte de distribuição. Cada GitHub
 Release publica um nome exclusivo, como `TPollScanner-1.8.13-release.apk`, e a
@@ -117,12 +120,13 @@ confundir uma APK antiga com a atual quando ambas ficam salvas no mesmo aparelho
 ou em uma pasta compartilhada de emulador. Falhas de build ficam no resumo e em
 um artefato temporário do Actions; elas não geram commits no código.
 
-No app, a verificação roda em segundo plano. O download pesado espera uma rede
-não tarifada, bateria e armazenamento adequados, valida tamanho, hash, pacote,
-versão e assinatura e então envia o APK ao instalador do Android. Em aparelhos
-comuns o próprio Android ainda pode exigir a permissão “instalar apps
-desconhecidos” ou uma confirmação final; instalação totalmente silenciosa só é
-garantida em cenários gerenciados ou por uma loja como a Google Play.
+No app, a verificação acontece ao abrir, ao voltar ao primeiro plano e também em
+segundo plano, respeitando cerca de seis horas. O download pesado espera uma rede
+não tarifada, bateria e armazenamento adequados, mostra progresso real e valida
+tamanho, hash, pacote, versão e assinatura. Só então o APK em cache privado é
+compartilhado com o instalador oficial por uma URI `content://` temporária. Em
+aparelhos comuns o Android pode exigir a permissão “instalar apps desconhecidos”
+e a confirmação final; o app não promete instalação silenciosa.
 
 ## Personalização das regras
 

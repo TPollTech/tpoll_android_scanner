@@ -1,0 +1,13 @@
+{
+  "versionCode": 27,
+  "versionName": "1.8.14",
+  "mandatory": false,
+  "minVersionCode": 1,
+  "releaseNotes": [
+    "Verificação automática ao abrir ou retomar o app, respeitando o intervalo de 6 horas",
+    "Download interno com progresso real, retomada e limpeza de arquivos temporários",
+    "Validação de SHA-256, pacote, versionCode e certificado antes da instalação",
+    "Instalação oficial do Android por content URI, sem prometer instalação silenciosa",
+    "Mensagens de erro e retomada após autorizar a instalação por esta fonte"
+  ]
+}

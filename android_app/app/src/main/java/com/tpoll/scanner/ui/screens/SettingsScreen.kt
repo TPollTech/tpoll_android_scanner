@@ -28,7 +28,6 @@ import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.ui.theme.ThemeManager
 import com.tpoll.scanner.ui.theme.ThemeMode
 import com.tpoll.scanner.updater.InstalledAppVersion
-import com.tpoll.scanner.updater.UpdateDialog
 import com.tpoll.scanner.updater.UpdateScheduler
 import com.tpoll.scanner.updater.UpdateStateStore
 import java.security.MessageDigest
@@ -37,7 +36,8 @@ import java.security.MessageDigest
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
-    onSignOut: () -> Unit = {}
+    onSignOut: () -> Unit = {},
+    onCheckForUpdates: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("scan_settings", Context.MODE_PRIVATE) }
@@ -45,25 +45,11 @@ fun SettingsScreen(
 
     var autoRemoveHigh by remember { mutableStateOf(prefs.getBoolean("auto_remove_high", true)) }
     var autoRemoveMedium by remember { mutableStateOf(prefs.getBoolean("auto_remove_medium", false)) }
-    var shieldEnabled by remember { mutableStateOf(ShieldService.isRunning()) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
+    var shieldEnabled by remember { mutableStateOf(ShieldService.isEnabled(context)) }
     var automaticUpdatesEnabled by remember {
         mutableStateOf(UpdateScheduler.isAutomaticUpdatesEnabled(context))
     }
     var updateStatus by remember { mutableStateOf(UpdateStateStore.summary(context)) }
-
-    if (showUpdateDialog) {
-        UpdateDialog(onDismiss = { seenVersionCode ->
-            showUpdateDialog = false
-            updateStatus = UpdateStateStore.summary(context)
-            if (seenVersionCode > 0) {
-                context.getSharedPreferences("update_prefs", Context.MODE_PRIVATE)
-                    .edit()
-                    .putInt("last_seen_version_code", seenVersionCode)
-                    .apply()
-            }
-        })
-    }
 
     Column(
         modifier = modifier
@@ -481,7 +467,7 @@ fun SettingsScreen(
                         )
                     }
                     FilledTonalButton(
-                        onClick = { showUpdateDialog = true }
+                        onClick = onCheckForUpdates
                     ) {
                         Icon(
                             Icons.Default.Update,
@@ -489,7 +475,7 @@ fun SettingsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Verificar")
+                        Text("Verificar atualizações")
                     }
                 }
                 updateStatus?.let { status ->

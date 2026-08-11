@@ -32,13 +32,27 @@ class ShieldService : Service() {
         const val ACTION_STOP = "com.tpoll.scanner.protection.STOP"
         const val ACTION_SCAN_NOW = "com.tpoll.scanner.protection.SCAN_NOW"
         private const val NOTIFICATION_ID = 3001
+        private const val PREFS_NAME = "scan_settings"
+        private const val KEY_REALTIME_PROTECTION = "realtime_protection_enabled"
 
         private var isRunning = false
         private var currentThreatCount = 0
 
         fun isRunning(): Boolean = isRunning
 
+        fun isEnabled(context: Context): Boolean =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_REALTIME_PROTECTION, true)
+
+        fun startIfEnabled(context: Context) {
+            if (isEnabled(context)) start(context)
+        }
+
         fun start(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_REALTIME_PROTECTION, true)
+                .apply()
             val intent = Intent(context, ShieldService::class.java).apply { action = ACTION_START }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -48,6 +62,10 @@ class ShieldService : Service() {
         }
 
         fun stop(context: Context) {
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_REALTIME_PROTECTION, false)
+                .apply()
             val intent = Intent(context, ShieldService::class.java).apply { action = ACTION_STOP }
             context.startService(intent)
         }

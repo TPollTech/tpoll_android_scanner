@@ -55,9 +55,17 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertIn("Publish immutable release and manifest last", workflow)
         self.assertIn("cleanup_unpublished_release", workflow)
+        self.assertIn("--release-config release-config.json", workflow)
+        self.assertGreaterEqual(workflow.count("--release-config release-config.json"), 2)
+        self.assertIn('gh release verify "$RELEASE_TAG"', workflow)
+        self.assertIn('gh release verify-asset "$RELEASE_TAG"', workflow)
+        self.assertIn("--draft", workflow)
+        self.assertNotIn("--clobber", workflow)
         self.assertIn("bash scripts/smoke_test_android_upgrade.sh", workflow)
         self.assertIn('adb install "$PREVIOUS_APK"', upgrade_smoke)
         self.assertIn('adb install -r "$RELEASE_APK"', upgrade_smoke)
+        self.assertIn("automatic_updates_enabled", upgrade_smoke)
+        self.assertIn("upgrade-preservation-marker.txt", upgrade_smoke)
         self.assertIn("android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d", workflow)
         self.assertIn("99-kvm4all.rules", workflow)
         self.assertIn("set -euo pipefail", upgrade_smoke)
@@ -66,16 +74,30 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertNotIn("releases/latest/download/TPollScanner-release.apk", landing)
         self.assertIn("data-apk-download", landing)
         self.assertIn("fetch('update.json', { cache: 'no-store' })", landing)
-        self.assertIn("TPollScanner-${release.version_name}-release.apk", landing)
+        self.assertIn("release.versionName ?? release.version_name", landing)
+        self.assertIn("TPollScanner-${versionName}-release.apk", landing)
         self.assertNotIn('href="TPollScanner-release.apk"', landing)
 
     def test_update_manifest_contains_mandatory_integrity_metadata(self) -> None:
         manifest = json.loads((ROOT / "update.json").read_text(encoding="utf-8"))
+        release_config = json.loads(
+            (ROOT / "release-config.json").read_text(encoding="utf-8")
+        )
 
         self.assertRegex(manifest["sha256"], r"^[0-9A-Fa-f]{64}$")
-        self.assertGreater(manifest["size_bytes"], 0)
-        self.assertTrue(manifest["released_at"])
-        self.assertTrue(manifest["apk_url"].startswith("https://"))
+        self.assertGreater(manifest["sizeBytes"], 0)
+        self.assertTrue(manifest["releasedAt"])
+        self.assertTrue(manifest["apkUrl"].startswith("https://"))
+        self.assertIsInstance(manifest["mandatory"], bool)
+        self.assertTrue(manifest["releaseNotes"])
+        self.assertEqual(manifest["versionCode"], manifest["version_code"])
+        self.assertEqual(manifest["apkUrl"], manifest["apk_url"])
+        self.assertIn(
+            release_config["versionCode"],
+            {manifest["versionCode"], manifest["versionCode"] + 1},
+        )
+        if release_config["versionCode"] == manifest["versionCode"]:
+            self.assertEqual(manifest["versionName"], release_config["versionName"])
 
     def test_automatic_updater_validates_identity_and_splits_network_work(self) -> None:
         installer = (
@@ -90,17 +112,22 @@ class ReleaseInvariantTests(unittest.TestCase):
             ROOT / "android_app/app/src/main/AndroidManifest.xml"
         ).read_text(encoding="utf-8")
 
-        self.assertIn("archiveInfo.packageName != context.packageName", installer)
+        self.assertIn("archiveInfo.packageName != EXPECTED_PACKAGE_NAME", installer)
         self.assertIn("signingCertificateDigests", installer)
-        self.assertIn("SHA_256_PATTERN.matches(expectedSha256)", installer)
-        self.assertIn("expectedSizeBytes", installer)
-        self.assertIn("USER_ACTION_NOT_REQUIRED", installer)
-        self.assertNotIn("FileProvider", installer)
+        self.assertIn("SHA_256_PATTERN.matches(info.sha256)", installer)
+        self.assertIn("EXPECTED_RELEASE_CERT_SHA256", installer)
+        self.assertIn("FileProvider.getUriForFile", installer)
+        self.assertIn("FLAG_GRANT_READ_URI_PERMISSION", installer)
+        self.assertNotIn("PackageInstaller", installer)
+        self.assertNotIn("USER_ACTION_NOT_REQUIRED", installer)
         self.assertIn("NetworkType.CONNECTED", scheduler)
         self.assertIn("NetworkType.UNMETERED", scheduler)
+        self.assertIn("PeriodicWorkRequestBuilder<UpdateWorker>(6, TimeUnit.HOURS)", scheduler)
         self.assertIn("BackoffPolicy.EXPONENTIAL", scheduler)
-        self.assertIn("UPDATE_PACKAGES_WITHOUT_USER_ACTION", manifest)
-        self.assertIn("UpdateInstallReceiver", manifest)
+        self.assertIn("androidx.core.content.FileProvider", manifest)
+        self.assertIn("${applicationId}.updateprovider", manifest)
+        self.assertNotIn("UPDATE_PACKAGES_WITHOUT_USER_ACTION", manifest)
+        self.assertNotIn("UpdateInstallReceiver", manifest)
 
     def test_android_toolchain_targets_current_api_without_forcing_compose_migration(self) -> None:
         root_gradle = (ROOT / "android_app/build.gradle.kts").read_text(encoding="utf-8")
@@ -114,10 +141,29 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn('id("org.jetbrains.kotlin.plugin.compose")', app_gradle)
         self.assertNotIn("kotlinCompilerExtensionVersion", app_gradle)
         self.assertIn('JsonSlurper().parse(rootProject.file("../update.json"))', app_gradle)
+        self.assertIn('manifestValue("versionCode", "version_code")', app_gradle)
         self.assertIn("gradle-8.13-bin.zip", wrapper)
         self.assertIn("compileSdk = 36", app_gradle)
         self.assertIn("targetSdk = 36", app_gradle)
         self.assertIn('androidx.work:work-runtime-ktx:2.11.2', app_gradle)
+
+    def test_background_workers_do_not_start_foreground_protection_from_application(self) -> None:
+        application = (
+            ROOT / "android_app/app/src/main/java/com/tpoll/scanner/TPollApp.kt"
+        ).read_text(encoding="utf-8")
+        activity = (
+            ROOT / "android_app/app/src/main/java/com/tpoll/scanner/MainActivity.kt"
+        ).read_text(encoding="utf-8")
+        shield = (
+            ROOT
+            / "android_app/app/src/main/java/com/tpoll/scanner/protection/ShieldService.kt"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("ShieldService.start(this)", application)
+        self.assertIn("ShieldService.startIfEnabled(this)", activity)
+        self.assertIn("realtime_protection_enabled", shield)
+        self.assertIn("androidx.compose.ui.platform.LocalLifecycleOwner", activity)
+        self.assertNotIn("androidx.lifecycle.compose.LocalLifecycleOwner", activity)
 
 
 if __name__ == "__main__":

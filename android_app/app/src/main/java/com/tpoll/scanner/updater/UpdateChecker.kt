@@ -1,11 +1,9 @@
 // Copyright (c) 2025 TPoll Tech. Todos os direitos reservados.
-// Este código é propriedade exclusiva da TPoll Tech.
-// É proibida a cópia, distribuição, modificação ou uso comercial
-// sem autorização expressa por escrito do titular dos direitos autorais.
 package com.tpoll.scanner.updater
 
 import android.content.Context
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -14,21 +12,42 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 data class UpdateInfo(
-    val version_code: Int = 0,
-    val version_name: String = "",
-    val changelog: String = "",
-    val download_url: String = "",
-    val apk_url: String = "",
+    @SerializedName(value = "versionCode", alternate = ["version_code"])
+    val versionCode: Int = 0,
+    @SerializedName(value = "versionName", alternate = ["version_name"])
+    val versionName: String = "",
+    @SerializedName(value = "apkUrl", alternate = ["apk_url"])
+    val apkUrl: String = "",
     val sha256: String = "",
-    val size_bytes: Long = 0L,
-    val released_at: String = "",
-    val min_version_code: Int = 1
+    val mandatory: Boolean = false,
+    @SerializedName(value = "releaseNotes", alternate = ["release_notes"])
+    val releaseNotes: List<String> = emptyList(),
+    @SerializedName(value = "downloadUrl", alternate = ["download_url"])
+    val downloadUrl: String = "",
+    @SerializedName(value = "sizeBytes", alternate = ["size_bytes"])
+    val sizeBytes: Long = 0L,
+    @SerializedName(value = "releasedAt", alternate = ["released_at"])
+    val releasedAt: String = "",
+    @SerializedName(value = "minVersionCode", alternate = ["min_version_code"])
+    val minVersionCode: Int = 1,
+    @SerializedName("changelog")
+    val legacyChangelog: String = ""
 ) {
     fun isNewerThan(installedVersionCode: Long): Boolean =
-        version_code.toLong() > installedVersionCode
+        versionCode.toLong() > installedVersionCode
 
     fun isMandatoryFor(installedVersionCode: Long): Boolean =
-        installedVersionCode < min_version_code.toLong()
+        mandatory || installedVersionCode < minVersionCode.toLong()
+
+    fun notesForDisplay(): List<String> = releaseNotes
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .ifEmpty {
+            legacyChangelog.lineSequence()
+                .map { it.trim().removePrefix("-").trim() }
+                .filter { it.isNotBlank() }
+                .toList()
+        }
 }
 
 sealed class UpdateResult {
@@ -43,20 +62,23 @@ sealed class UpdateResult {
 
 object UpdateManifestValidator {
     private val SHA_256 = Regex("^[0-9a-fA-F]{64}$")
+    private val VERSION_NAME = Regex("^\\d+\\.\\d+\\.\\d+$")
     private const val MAX_APK_BYTES = 250L * 1024L * 1024L
 
     fun error(info: UpdateInfo): String? = when {
-        info.version_code <= 0 -> "O manifesto não informa uma versão válida."
-        info.version_name.isBlank() -> "O manifesto não informa o nome da versão."
-        info.min_version_code <= 0 -> "O manifesto informa uma versão mínima inválida."
-        info.min_version_code > info.version_code ->
+        info.versionCode <= 0 -> "O manifesto não informa uma versão válida."
+        !VERSION_NAME.matches(info.versionName) ->
+            "O manifesto não informa o nome da versão no formato correto."
+        info.minVersionCode <= 0 -> "O manifesto informa uma versão mínima inválida."
+        info.minVersionCode > info.versionCode ->
             "O manifesto exige uma versão mínima maior que a atualização disponível."
-        !isHttps(info.apk_url) -> "O manifesto não informa um endereço HTTPS para o APK."
-        info.apk_url != expectedApkUrl(info.version_name) ->
+        !isHttps(info.apkUrl) -> "O manifesto não informa um endereço HTTPS para o APK."
+        info.apkUrl != expectedApkUrl(info.versionName) ->
             "O manifesto não aponta para o APK oficial desta versão."
-        !isHttps(info.download_url) -> "O manifesto não informa uma página HTTPS de download."
+        !isHttps(info.downloadUrl) -> "O manifesto não informa uma página HTTPS de download."
         !SHA_256.matches(info.sha256) -> "O manifesto não contém um SHA-256 válido."
-        info.size_bytes !in 1..MAX_APK_BYTES -> "O manifesto informa um tamanho de APK inválido."
+        info.sizeBytes !in 1..MAX_APK_BYTES -> "O manifesto informa um tamanho de APK inválido."
+        info.notesForDisplay().isEmpty() -> "O manifesto não informa as notas da versão."
         else -> null
     }
 
@@ -64,7 +86,7 @@ object UpdateManifestValidator {
         URL(value).protocol.equals("https", ignoreCase = true)
     }.getOrDefault(false)
 
-    private fun expectedApkUrl(versionName: String): String =
+    fun expectedApkUrl(versionName: String): String =
         "https://github.com/TPollTech/tpoll_android_scanner/releases/download/" +
             "v$versionName/TPollScanner-$versionName-release.apk"
 }
@@ -86,6 +108,7 @@ class UpdateChecker(private val context: Context) {
                 instanceFollowRedirects = true
                 useCaches = false
                 setRequestProperty("Accept", "application/json")
+                setRequestProperty("Cache-Control", "no-cache")
                 setRequestProperty("User-Agent", "TPollScanner/${installedVersion.name}")
             }
         } catch (_: Exception) {
@@ -157,14 +180,17 @@ class UpdateChecker(private val context: Context) {
             "https://raw.githubusercontent.com/TPollTech/tpoll_android_scanner/main/update.json"
         private const val PREF_NAME = "update_prefs"
         private const val KEY_LAST_CHECK = "last_successful_update_check"
-        private const val CHECK_INTERVAL_MILLIS = 24 * 60 * 60 * 1000L
+        internal const val CHECK_INTERVAL_MILLIS = 6 * 60 * 60 * 1000L
         private const val MAX_MANIFEST_BYTES = 128 * 1024
 
         fun shouldCheck(context: Context): Boolean {
             val lastCheck = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
                 .getLong(KEY_LAST_CHECK, 0L)
-            return System.currentTimeMillis() - lastCheck > CHECK_INTERVAL_MILLIS
+            return shouldCheckAt(lastCheck, System.currentTimeMillis())
         }
+
+        internal fun shouldCheckAt(lastCheck: Long, now: Long): Boolean =
+            lastCheck <= 0L || now < lastCheck || now - lastCheck >= CHECK_INTERVAL_MILLIS
 
         private fun markChecked(context: Context) {
             context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)

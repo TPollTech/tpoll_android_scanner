@@ -93,6 +93,7 @@ jobs:
         run: |
           python3 scripts/release_manifest.py next \
             --manifest update.json \
+            --release-config release-config.json \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Build and test release APK
@@ -166,8 +167,10 @@ jobs:
           ACTUAL_PACKAGE=$(printf '%s\n' "$BADGING" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p")
           ACTUAL_VERSION_CODE=$(printf '%s\n' "$BADGING" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
           ACTUAL_VERSION_NAME=$(printf '%s\n' "$BADGING" | sed -n "s/.*versionName='\([^']*\)'.*/\1/p")
+          EMBEDDED_CERT=$(python3 -c "import re,pathlib; text=pathlib.Path('android_app/app/src/main/java/com/tpoll/scanner/updater/ApkInstaller.kt').read_text(); print(re.search(r'EXPECTED_RELEASE_CERT_SHA256 =\\s*\\n?\\s*\"([0-9a-fA-F]{64})\"', text).group(1).lower())")
 
           [ "$ACTUAL_CERT" = "$EXPECTED_CERT" ] || { echo "Release certificate mismatch."; exit 1; }
+          [ "$EMBEDDED_CERT" = "$EXPECTED_CERT" ] || { echo "Embedded updater certificate mismatch."; exit 1; }
           [ "$ACTUAL_PACKAGE" = "com.tpoll.scanner" ] || { echo "Unexpected package: $ACTUAL_PACKAGE"; exit 1; }
           [ "$ACTUAL_VERSION_CODE" = "$EXPECTED_VERSION_CODE" ] || { echo "Unexpected versionCode: $ACTUAL_VERSION_CODE"; exit 1; }
           [ "$ACTUAL_VERSION_NAME" = "$EXPECTED_VERSION_NAME" ] || { echo "Unexpected versionName: $ACTUAL_VERSION_NAME"; exit 1; }
@@ -177,7 +180,7 @@ jobs:
         run: |
           set -euo pipefail
           cp update.json previous-update.json
-          PREVIOUS_APK_URL=$(python3 -c "import json; print(json.load(open('previous-update.json', encoding='utf-8'))['apk_url'])")
+          PREVIOUS_APK_URL=$(python3 -c "import json; data=json.load(open('previous-update.json', encoding='utf-8')); print(data.get('apkUrl', data.get('apk_url', '')))")
           curl --fail --location --retry 3 --retry-all-errors \
             --output previous-release.apk \
             "$PREVIOUS_APK_URL"
@@ -195,7 +198,8 @@ jobs:
             --apk "$APK_FILE_NAME" \
             --version-code "$VERSION_CODE" \
             --version-name "$VERSION_NAME" \
-            --apk-url "$APK_URL"
+            --apk-url "$APK_URL" \
+            --release-config release-config.json
           python3 scripts/release_manifest.py verify \
             --manifest update.json \
             --apk "$APK_FILE_NAME"
@@ -244,12 +248,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           release_owned=false
+          release_published=false
+          release_immutable=false
 
           cleanup_unpublished_release() {
             [ "$release_owned" = true ] || return 0
+            [ "$release_published" = false ] || return 0
             git fetch origin main --quiet || true
             REMOTE_APK_URL=$(git show origin/main:update.json 2>/dev/null | \
-              python3 -c "import json,sys; print(json.load(sys.stdin).get('apk_url', ''))" 2>/dev/null || true)
+              python3 -c "import json,sys; data=json.load(sys.stdin); print(data.get('apkUrl', data.get('apk_url', '')))" 2>/dev/null || true)
             if [[ "$REMOTE_APK_URL" == *"/releases/download/$RELEASE_TAG/"* ]]; then
               echo "Release $RELEASE_TAG is already referenced by the public manifest; keeping it."
               return 0
@@ -266,15 +273,62 @@ jobs:
               echo "Release tag $RELEASE_TAG already belongs to another commit."
               exit 1
             }
-            release_owned=true
-            gh release upload "$RELEASE_TAG" "$APK_FILE_NAME" --clobber
+            IS_DRAFT=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+            [ "$IS_DRAFT" = true ] && release_owned=true
           else
             release_owned=true
             gh release create "$RELEASE_TAG" "$APK_FILE_NAME" \
               --target "$GITHUB_SHA" \
               --title "TPoll Scanner $VERSION_NAME" \
+              --draft \
               --generate-notes
           fi
+
+          rm -rf published-asset-check
+          mkdir published-asset-check
+          gh release download "$RELEASE_TAG" \
+            --pattern "$APK_FILE_NAME" \
+            --dir published-asset-check
+          cmp "$APK_FILE_NAME" "published-asset-check/$APK_FILE_NAME" || {
+            echo "Existing release asset differs from the signed build. Refusing to replace it."
+            exit 1
+          }
+
+          IS_DRAFT=$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)
+          if [ "$IS_DRAFT" = true ]; then
+            gh release edit "$RELEASE_TAG" --draft=false
+          fi
+          release_published=true
+
+          curl --fail --location --retry 8 --retry-all-errors --retry-delay 3 \
+            --output published-release.apk \
+            "$APK_URL"
+          python3 scripts/release_manifest.py verify \
+            --manifest update.json \
+            --apk published-release.apk
+
+          APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
+          REMOTE_VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs published-release.apk)
+          REMOTE_CERT=$(printf '%s\n' "$REMOTE_VERIFY_OUTPUT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p; s/^V2 Signer: certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          EXPECTED_CERT=$(printf '%s' "${{ secrets.RELEASE_CERT_SHA256 }}" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          [ "$REMOTE_CERT" = "$EXPECTED_CERT" ] || {
+            echo "Published release certificate mismatch."
+            exit 1
+          }
+
+          for attempt in $(seq 1 12); do
+            if gh release verify "$RELEASE_TAG" && \
+              gh release verify-asset "$RELEASE_TAG" published-release.apk; then
+              release_immutable=true
+              break
+            fi
+            echo "Release attestation not ready yet (attempt $attempt/12)."
+            sleep 5
+          done
+          [ "$release_immutable" = true ] || {
+            echo "GitHub did not confirm an immutable release attestation."
+            exit 1
+          }
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

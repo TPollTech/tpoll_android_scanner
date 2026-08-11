@@ -23,8 +23,8 @@ class UpdateWorker(
                 UpdateStateStore.write(
                     context = applicationContext,
                     phase = UpdatePhase.AVAILABLE,
-                    versionCode = update.info.version_code,
-                    versionName = update.info.version_name
+                    versionCode = update.info.versionCode,
+                    versionName = update.info.versionName
                 )
                 UpdateScheduler.enqueueDownload(applicationContext, update.info)
                 Result.success()

@@ -19,6 +19,18 @@ RELEASE_BASE_URL = (
     "https://github.com/TPollTech/tpoll_android_scanner/releases/download"
 )
 
+# compatibility: clients through 1.8.13 read these snake_case names. Keep both
+# representations identical until those clients are outside the support window.
+LEGACY_ALIASES = {
+    "versionCode": "version_code",
+    "versionName": "version_name",
+    "apkUrl": "apk_url",
+    "downloadUrl": "download_url",
+    "sizeBytes": "size_bytes",
+    "releasedAt": "released_at",
+    "minVersionCode": "min_version_code",
+}
+
 
 def expected_apk_url(version_name: str) -> str:
     return (
@@ -27,19 +39,35 @@ def expected_apk_url(version_name: str) -> str:
     )
 
 
-def load_manifest(path: pathlib.Path) -> dict:
+def load_json_object(path: pathlib.Path, label: str) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
     if not isinstance(data, dict):
-        raise ValueError("update manifest must be a JSON object")
+        raise ValueError(f"{label} must be a JSON object")
     return data
 
 
+def load_manifest(path: pathlib.Path) -> dict:
+    return load_json_object(path, "update manifest")
+
+
+def manifest_value(manifest: dict, canonical: str):
+    legacy = LEGACY_ALIASES.get(canonical)
+    has_canonical = canonical in manifest
+    has_legacy = legacy is not None and legacy in manifest
+    if not has_canonical and not has_legacy:
+        raise KeyError(canonical)
+    if has_canonical and has_legacy and manifest[canonical] != manifest[legacy]:
+        raise ValueError(f"{canonical} and {legacy} must match")
+    return manifest[canonical] if has_canonical else manifest[legacy]
+
+
 def next_version(manifest: dict) -> tuple[int, str]:
-    current_code = int(manifest["version_code"])
-    match = VERSION_PATTERN.fullmatch(str(manifest["version_name"]))
+    current_code = int(manifest_value(manifest, "versionCode"))
+    current_name = str(manifest_value(manifest, "versionName"))
+    match = VERSION_PATTERN.fullmatch(current_name)
     if current_code <= 0 or match is None:
-        raise ValueError("current version_code/version_name is invalid")
+        raise ValueError("current versionCode/versionName is invalid")
     major, minor, patch = (int(part) for part in match.groups())
     return current_code + 1, f"{major}.{minor}.{patch + 1}"
 
@@ -52,6 +80,29 @@ def sha256(path: pathlib.Path) -> str:
     return digest.hexdigest().upper()
 
 
+def sync_legacy_fields(manifest: dict) -> dict:
+    result = dict(manifest)
+    for canonical, legacy in LEGACY_ALIASES.items():
+        result[legacy] = result[canonical]
+    result["changelog"] = "\n".join(result["releaseNotes"])
+    return result
+
+
+def validate_release_config_version(
+    release_config: dict,
+    version_code: int,
+    version_name: str,
+) -> None:
+    if release_config.get("versionCode") != version_code:
+        raise ValueError(
+            "release config versionCode must match the version being published"
+        )
+    if release_config.get("versionName") != version_name:
+        raise ValueError(
+            "release config versionName must match the version being published"
+        )
+
+
 def finalize_manifest(
     manifest: dict,
     apk_path: pathlib.Path,
@@ -59,6 +110,7 @@ def finalize_manifest(
     version_name: str,
     apk_url: str,
     released_at: str | None = None,
+    release_config: dict | None = None,
 ) -> dict:
     if not apk_path.is_file() or apk_path.stat().st_size <= 0:
         raise ValueError("release APK is missing or empty")
@@ -68,69 +120,115 @@ def finalize_manifest(
         raise ValueError("APK URL must use HTTPS")
 
     result = dict(manifest)
+    if release_config is not None:
+        validate_release_config_version(release_config, version_code, version_name)
+        release_notes = release_config.get("releaseNotes")
+        mandatory = release_config.get("mandatory")
+        minimum = release_config.get("minVersionCode", 1)
+        if (
+            not isinstance(release_notes, list)
+            or not release_notes
+            or not all(isinstance(note, str) and note.strip() for note in release_notes)
+        ):
+            raise ValueError("release config must contain non-empty releaseNotes")
+        if not isinstance(mandatory, bool):
+            raise ValueError("release config mandatory must be boolean")
+        result["releaseNotes"] = [note.strip() for note in release_notes]
+        result["mandatory"] = mandatory
+        result["minVersionCode"] = int(minimum)
+
     result.update(
-        version_code=version_code,
-        version_name=version_name,
-        apk_url=apk_url,
+        versionCode=version_code,
+        versionName=version_name,
+        apkUrl=apk_url,
         sha256=sha256(apk_path),
-        size_bytes=apk_path.stat().st_size,
-        released_at=released_at
+        sizeBytes=apk_path.stat().st_size,
+        releasedAt=released_at
         or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     )
-    return result
+    return sync_legacy_fields(result)
 
 
 def validate_manifest(manifest: dict, apk_path: pathlib.Path | None = None) -> list[str]:
     errors: list[str] = []
+
+    for canonical, legacy in LEGACY_ALIASES.items():
+        if canonical not in manifest:
+            errors.append(f"{canonical} is required")
+        if legacy not in manifest:
+            errors.append(f"{legacy} compatibility alias is required")
+        if canonical in manifest and legacy in manifest and manifest[canonical] != manifest[legacy]:
+            errors.append(f"{canonical} and {legacy} must match")
+
     try:
-        version_code = int(manifest.get("version_code", 0))
+        version_code = int(manifest.get("versionCode", 0))
         if version_code <= 0:
-            errors.append("version_code must be positive")
+            errors.append("versionCode must be positive")
     except (TypeError, ValueError):
         version_code = 0
-        errors.append("version_code must be an integer")
-    if VERSION_PATTERN.fullmatch(str(manifest.get("version_name", ""))) is None:
-        errors.append("version_name must use major.minor.patch")
-    if not str(manifest.get("download_url", "")).startswith("https://"):
-        errors.append("download_url must use HTTPS")
-    apk_url = str(manifest.get("apk_url", ""))
-    version_name = str(manifest.get("version_name", ""))
+        errors.append("versionCode must be an integer")
+
+    version_name = str(manifest.get("versionName", ""))
+    if VERSION_PATTERN.fullmatch(version_name) is None:
+        errors.append("versionName must use major.minor.patch")
+
+    if not str(manifest.get("downloadUrl", "")).startswith("https://"):
+        errors.append("downloadUrl must use HTTPS")
+
+    apk_url = str(manifest.get("apkUrl", ""))
     if not apk_url.startswith("https://"):
-        errors.append("apk_url must use HTTPS")
+        errors.append("apkUrl must use HTTPS")
     elif VERSION_PATTERN.fullmatch(version_name) is not None and apk_url != expected_apk_url(
         version_name
     ):
-        errors.append("apk_url must use the canonical versioned release filename")
+        errors.append("apkUrl must use the canonical versioned release filename")
+
     manifest_hash = str(manifest.get("sha256", "")).upper()
     if SHA_256_PATTERN.fullmatch(manifest_hash) is None:
         errors.append("sha256 must contain exactly 64 hexadecimal characters")
+
     try:
-        manifest_size = int(manifest.get("size_bytes", 0))
+        manifest_size = int(manifest.get("sizeBytes", 0))
         if manifest_size <= 0 or manifest_size > MAX_APK_BYTES:
-            errors.append("size_bytes must be between 1 and 250 MiB")
+            errors.append("sizeBytes must be between 1 and 250 MiB")
     except (TypeError, ValueError):
         manifest_size = 0
-        errors.append("size_bytes must be an integer")
-    if not str(manifest.get("released_at", "")):
-        errors.append("released_at is required")
+        errors.append("sizeBytes must be an integer")
+
+    if not str(manifest.get("releasedAt", "")):
+        errors.append("releasedAt is required")
     else:
         try:
-            datetime.fromisoformat(str(manifest["released_at"]).replace("Z", "+00:00"))
+            datetime.fromisoformat(str(manifest["releasedAt"]).replace("Z", "+00:00"))
         except ValueError:
-            errors.append("released_at must be an ISO-8601 timestamp")
+            errors.append("releasedAt must be an ISO-8601 timestamp")
+
     try:
-        minimum_version_code = int(manifest.get("min_version_code", 0))
+        minimum_version_code = int(manifest.get("minVersionCode", 0))
         if minimum_version_code <= 0 or minimum_version_code > version_code:
-            errors.append("min_version_code must be between 1 and version_code")
+            errors.append("minVersionCode must be between 1 and versionCode")
     except (TypeError, ValueError):
-        errors.append("min_version_code must be an integer")
+        errors.append("minVersionCode must be an integer")
+
+    if not isinstance(manifest.get("mandatory"), bool):
+        errors.append("mandatory must be boolean")
+
+    release_notes = manifest.get("releaseNotes")
+    if (
+        not isinstance(release_notes, list)
+        or not release_notes
+        or not all(isinstance(note, str) and note.strip() for note in release_notes)
+    ):
+        errors.append("releaseNotes must contain at least one non-empty item")
+    elif manifest.get("changelog") != "\n".join(release_notes):
+        errors.append("changelog compatibility field must match releaseNotes")
 
     if apk_path is not None:
         if not apk_path.is_file():
             errors.append("APK file does not exist")
         else:
             if apk_path.stat().st_size != manifest_size:
-                errors.append("APK size does not match size_bytes")
+                errors.append("APK size does not match sizeBytes")
             if sha256(apk_path) != manifest_hash:
                 errors.append("APK SHA-256 does not match manifest")
     return errors
@@ -146,6 +244,12 @@ def write_manifest(path: pathlib.Path, manifest: dict) -> None:
 
 def command_next(args: argparse.Namespace) -> None:
     version_code, version_name = next_version(load_manifest(args.manifest))
+    if args.release_config:
+        validate_release_config_version(
+            load_json_object(args.release_config, "release config"),
+            version_code,
+            version_name,
+        )
     output = f"version_code={version_code}\nversion_name={version_name}\n"
     if args.github_output:
         with args.github_output.open("a", encoding="utf-8", newline="\n") as handle:
@@ -155,6 +259,11 @@ def command_next(args: argparse.Namespace) -> None:
 
 
 def command_finalize(args: argparse.Namespace) -> None:
+    release_config = (
+        load_json_object(args.release_config, "release config")
+        if args.release_config
+        else None
+    )
     manifest = finalize_manifest(
         manifest=load_manifest(args.manifest),
         apk_path=args.apk,
@@ -162,6 +271,7 @@ def command_finalize(args: argparse.Namespace) -> None:
         version_name=args.version_name,
         apk_url=args.apk_url,
         released_at=args.released_at,
+        release_config=release_config,
     )
     write_manifest(args.manifest, manifest)
     errors = validate_manifest(manifest, args.apk)
@@ -182,6 +292,7 @@ def parser() -> argparse.ArgumentParser:
 
     next_parser = subcommands.add_parser("next")
     next_parser.add_argument("--manifest", type=pathlib.Path, required=True)
+    next_parser.add_argument("--release-config", type=pathlib.Path)
     next_parser.add_argument("--github-output", type=pathlib.Path)
     next_parser.set_defaults(func=command_next)
 
@@ -192,6 +303,7 @@ def parser() -> argparse.ArgumentParser:
     finalize_parser.add_argument("--version-name", required=True)
     finalize_parser.add_argument("--apk-url", required=True)
     finalize_parser.add_argument("--released-at")
+    finalize_parser.add_argument("--release-config", type=pathlib.Path)
     finalize_parser.set_defaults(func=command_finalize)
 
     verify_parser = subcommands.add_parser("verify")

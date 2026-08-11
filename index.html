@@ -366,10 +366,12 @@
             const response = await fetch('update.json', { cache: 'no-store' });
             if (!response.ok) throw new Error(`Manifesto indisponível: HTTP ${response.status}`);
             const release = await response.json();
-            const expectedUrl = `https://github.com/TPollTech/tpoll_android_scanner/releases/download/v${release.version_name}/TPollScanner-${release.version_name}-release.apk`;
-            if (release.apk_url !== expectedUrl) throw new Error('Endereço do APK não corresponde à versão publicada.');
+            const versionName = release.versionName ?? release.version_name;
+            const apkUrl = release.apkUrl ?? release.apk_url;
+            const expectedUrl = `https://github.com/TPollTech/tpoll_android_scanner/releases/download/v${versionName}/TPollScanner-${versionName}-release.apk`;
+            if (apkUrl !== expectedUrl) throw new Error('Endereço do APK não corresponde à versão publicada.');
             downloadLinks.forEach(link => { link.href = expectedUrl; });
-            releaseBadge.lastChild.textContent = ` v${release.version_name} — Detecção automática de ameaças`;
+            releaseBadge.lastChild.textContent = ` v${versionName} — Detecção automática de ameaças`;
         } catch (error) {
             console.error('Não foi possível carregar o download direto.', error);
             downloadLinks.forEach(link => { link.href = RELEASES_FALLBACK_URL; });

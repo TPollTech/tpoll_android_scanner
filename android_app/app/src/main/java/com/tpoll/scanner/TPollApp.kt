@@ -13,7 +13,6 @@ import com.tpoll.scanner.notifications.NotificationHelper
 import com.tpoll.scanner.protection.LicenseValidator
 import com.tpoll.scanner.protection.PackageReceiver
 import com.tpoll.scanner.protection.SelfProtection
-import com.tpoll.scanner.protection.ShieldService
 import com.tpoll.scanner.updater.RemoteConfig
 import com.tpoll.scanner.updater.UpdateScheduler
 import com.tpoll.scanner.updater.UpdateStateStore
@@ -46,7 +45,6 @@ class TPollApp : Application() {
         ttsHelper = TtsHelper(this)
         selfProtection = SelfProtection(this)
         LicenseValidator.checkAndStoreSignature(this)
-        ShieldService.start(this)
         selfProtection.enableProtection()
         UpdateStateStore.reconcileInstalledVersion(this)
         UpdateScheduler.schedule(this)

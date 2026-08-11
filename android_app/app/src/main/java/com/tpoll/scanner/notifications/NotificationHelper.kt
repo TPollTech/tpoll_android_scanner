@@ -229,7 +229,7 @@ class NotificationHelper(private val context: Context) {
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     "Toque em Permitir e ative a instalação por esta fonte. " +
-                        "Depois, volte ao app e verifique a atualização novamente."
+                        "Depois, volte ao app para continuar com o APK já validado."
                 )
             )
             .setPriority(NotificationCompat.PRIORITY_HIGH)

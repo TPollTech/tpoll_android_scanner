@@ -1,0 +1,5 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="automatic_updates_enabled" value="false" />
+    <string name="upgrade_test_marker">tpoll-upgrade-preserved-2026</string>
+</map>
