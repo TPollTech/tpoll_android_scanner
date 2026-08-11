@@ -1,4 +1,6 @@
 {
+  "versionCode": 28,
+  "versionName": "1.8.15",
   "mandatory": false,
   "minVersionCode": 1,
   "releaseNotes": [
