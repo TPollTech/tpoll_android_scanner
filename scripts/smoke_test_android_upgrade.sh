@@ -15,6 +15,17 @@ read_installed_version() {
   printf '%s' "${versions%%$'\n'*}"
 }
 
+assert_preserved_state() {
+  local prefs_contents
+  local marker_contents
+  prefs_contents=$(adb shell cat "$DATA_DIR/shared_prefs/update_prefs.xml")
+  marker_contents=$(adb shell cat "$DATA_DIR/files/upgrade-preservation-marker.txt")
+  grep -Fq 'name="automatic_updates_enabled"' <<<"$prefs_contents"
+  grep -Fq 'value="false"' <<<"$prefs_contents"
+  grep -Fq "$PRESERVATION_MARKER" <<<"$prefs_contents"
+  grep -Fq "$PRESERVATION_MARKER" <<<"$marker_contents"
+}
+
 adb install "$PREVIOUS_APK"
 previous_version=$(read_installed_version)
 [[ "$previous_version" =~ ^[0-9]+$ ]] || {
@@ -62,17 +73,11 @@ installed_version=$(read_installed_version)
   exit 1
 }
 
-adb shell grep -q "$PRESERVATION_MARKER" \
-  "$DATA_DIR/files/upgrade-preservation-marker.txt"
-adb shell grep -q 'name="automatic_updates_enabled" value="false"' \
-  "$DATA_DIR/shared_prefs/update_prefs.xml"
-adb shell grep -q "$PRESERVATION_MARKER" \
-  "$DATA_DIR/shared_prefs/update_prefs.xml"
+assert_preserved_state
 
 launch_output=$(adb shell am start -W -n "$PACKAGE_NAME/.MainActivity")
 printf '%s\n' "$launch_output"
 grep -q 'Status: ok' <<<"$launch_output"
 adb shell am force-stop "$PACKAGE_NAME"
-adb shell grep -q 'name="automatic_updates_enabled" value="false"' \
-  "$DATA_DIR/shared_prefs/update_prefs.xml"
+assert_preserved_state
 echo "Signed in-place upgrade from $previous_version to $installed_version preserved app data and settings."

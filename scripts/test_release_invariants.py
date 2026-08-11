@@ -66,6 +66,8 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn('adb install -r "$RELEASE_APK"', upgrade_smoke)
         self.assertIn("automatic_updates_enabled", upgrade_smoke)
         self.assertIn("upgrade-preservation-marker.txt", upgrade_smoke)
+        self.assertIn("prefs_contents=$(adb shell cat", upgrade_smoke)
+        self.assertNotIn("adb shell grep -q", upgrade_smoke)
         self.assertIn("android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d", workflow)
         self.assertIn("99-kvm4all.rules", workflow)
         self.assertIn("set -euo pipefail", upgrade_smoke)
