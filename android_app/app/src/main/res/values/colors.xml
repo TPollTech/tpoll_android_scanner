@@ -4,4 +4,10 @@
     <color name="high_risk">#FFD32F2F</color>
     <color name="medium_risk">#FFFFA000</color>
     <color name="low_risk">#FF4CAF50</color>
+    <color name="web_warning_primary">#FF1565C0</color>
+    <color name="web_warning_danger">#FFD32F2F</color>
+    <color name="web_warning_text_primary">#FFFFFFFF</color>
+    <color name="web_warning_text_secondary">#B3FFFFFF</color>
+    <color name="web_warning_background">#FF1A1A2E</color>
+    <color name="web_warning_card">#FF16213E</color>
 </resources>

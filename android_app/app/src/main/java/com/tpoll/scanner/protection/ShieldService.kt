@@ -21,6 +21,9 @@ import com.tpoll.scanner.model.QuarantinedApp
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.notifications.NotificationHelper
 import com.tpoll.scanner.webguard.WebGuard
+import com.tpoll.scanner.webguard.WebBlockerVPNService
+import com.tpoll.scanner.webguard.URLMonitorService
+import com.tpoll.scanner.webguard.WebProtectionConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
@@ -151,6 +154,8 @@ class ShieldService : Service() {
                     withContext(Dispatchers.IO) { webGuard.scanDownloads() }
                 }
 
+                checkWebProtectionStatus()
+
                 val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
                 prefs.edit()
                     .putInt("threat_count", status.totalThreats)
@@ -215,6 +220,37 @@ class ShieldService : Service() {
             )
             db.quarantineDao().insert(quarantined)
         } catch (_: Exception) { }
+    }
+
+    private suspend fun checkWebProtectionStatus() {
+        withContext(Dispatchers.IO) {
+            try {
+                val config = WebProtectionConfig.getInstance(this@ShieldService)
+
+                if (config.isVPNEnabled() && !WebBlockerVPNService.isRunning()) {
+                    if (!com.tpoll.scanner.webguard.WebProtectionToggle.isOtherVPNActive(this@ShieldService)) {
+                        WebBlockerVPNService.start(this@ShieldService)
+                    }
+                }
+
+                if (config.isAccessibilityEnabled() && !URLMonitorService.isMonitoring()) {
+                    if (URLMonitorService.isAccessibilityEnabled(this@ShieldService)) {
+                    } else {
+                        config.setAccessibilityEnabled(false)
+                    }
+                }
+
+                val vpnRunning = WebBlockerVPNService.isRunning()
+                val accessibilityRunning = URLMonitorService.isMonitoring()
+
+                val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
+                prefs.edit()
+                    .putBoolean("vpn_active", vpnRunning)
+                    .putBoolean("accessibility_active", accessibilityRunning)
+                    .putInt("web_blocked_today", config.getBlockedToday())
+                    .apply()
+            } catch (_: Exception) {}
+        }
     }
 
     override fun onDestroy() {

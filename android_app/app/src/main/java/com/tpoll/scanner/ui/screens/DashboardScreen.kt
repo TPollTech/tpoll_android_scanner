@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Globe
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Security
@@ -324,6 +325,29 @@ fun DashboardScreen(
                 isActive = shieldActive,
                 accentColor = if (shieldActive) extended.shieldActive else extended.shieldInactive,
                 onClick = if (shieldThreats > 0) onNavigateToHistory else null
+            )
+        }
+
+        item {
+            val webProtectionConfig = remember { com.tpoll.scanner.webguard.WebProtectionConfig.getInstance(context) }
+            val vpnActive = remember { com.tpoll.scanner.webguard.WebBlockerVPNService.isRunning() }
+            val accessibilityActive = remember { com.tpoll.scanner.webguard.URLMonitorService.isMonitoring() }
+            val webProtectionActive = vpnActive || accessibilityActive
+            val blockedToday = remember { webProtectionConfig.getBlockedToday() }
+
+            MonitorCard(
+                icon = Icons.Default.Shield,
+                title = "Proteção Web",
+                subtitle = when {
+                    vpnActive && accessibilityActive -> "VPN + Monitoramento ativos"
+                    vpnActive -> "Bloqueio VPN ativo"
+                    accessibilityActive -> "Monitoramento ativo"
+                    else -> "Desativado"
+                },
+                isActive = webProtectionActive,
+                accentColor = if (webProtectionActive) extended.shieldActive else extended.shieldInactive,
+                onClick = null,
+                extraInfo = if (blockedToday > 0) "$blockedToday site(s) bloqueado(s) hoje" else null
             )
         }
 
@@ -697,7 +721,8 @@ private fun MonitorCard(
     subtitle: String,
     isActive: Boolean,
     accentColor: Color,
-    onClick: (() -> Unit)?
+    onClick: (() -> Unit)?,
+    extraInfo: String? = null
 ) {
     Card(
         modifier = Modifier
@@ -738,6 +763,14 @@ private fun MonitorCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (extraInfo != null) {
+                    Text(
+                        extraInfo,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 12.sp
+                    )
+                }
             }
             Surface(
                 shape = CircleShape,

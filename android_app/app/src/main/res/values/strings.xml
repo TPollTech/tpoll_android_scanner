@@ -26,4 +26,6 @@
     <string name="threats_notification_channel">Ameaças Detectadas</string>
     <string name="permission_required">Permissão necessária</string>
     <string name="grant_permission">Conceder</string>
+    <string name="accessibility_service_description">O TPoll Guard monitora o navegador para detectar sites perigosos e bloquear acesso a conteúdo malicioso, golpes e phishing. O serviço apenas lê o conteúdo das janelas para verificação de segurança.</string>
+    <string name="web_protection_channel">Proteção Web</string>
 </resources>
