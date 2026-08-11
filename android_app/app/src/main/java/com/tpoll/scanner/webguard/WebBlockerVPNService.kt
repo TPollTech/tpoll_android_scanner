@@ -253,7 +253,7 @@ class WebBlockerVPNService : VpnService() {
         response[answerCountOffset] = 0x00
         response[answerCountOffset + 1] = 0x01
 
-        val answerOffset = dnsOffset + 12
+        var answerOffset = dnsOffset + 12
         while (answerOffset < response.size && response[answerOffset].toInt() != 0) {
             val labelLen = response[answerOffset].toInt() and 0xFF
             if (labelLen == 0) break
