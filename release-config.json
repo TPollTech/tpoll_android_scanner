@@ -1,15 +1,11 @@
 {
-  "versionCode": 28,
-  "versionName": "1.8.15",
+  "versionCode": 29,
+  "versionName": "1.8.16",
   "mandatory": false,
   "minVersionCode": 1,
   "releaseNotes": [
-    "Proteção web completa: bloqueio DNS via VPN e monitoramento de navegador via Acessibilidade",
-    "Base de dados com 500+ domínios bloqueados em 5 categorias: Cassino, Conteúdo Explícito, Phishing, Malware e Redes Sociais Falsas",
-    "Tela de aviso ao acessar site perigosmo com opção de voltar ou continuar",
-    "Notificações detalhadas quando site é bloqueado",
-    "Configuração granular: toggle por serviço e por categoria",
-    "Dashboard com status da proteção web e contador de bloqueios",
-    "Integração com Shield para verificação contínua do status da proteção"
+    "Compatibilidade ampliada da assinatura digital com instaladores Android e de fabricantes",
+    "APK assinado simultaneamente pelos esquemas v1, v2 e v3, mantendo o certificado oficial",
+    "Publicação bloqueada automaticamente se qualquer esquema de assinatura obrigatório estiver ausente"
   ]
 }

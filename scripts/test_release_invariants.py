@@ -12,6 +12,10 @@ class ReleaseInvariantTests(unittest.TestCase):
         gradle = (ROOT / "android_app/app/build.gradle.kts").read_text(encoding="utf-8")
 
         self.assertIn("Release signing is required", gradle)
+        self.assertIn("enableV1Signing = true", gradle)
+        self.assertIn("enableV2Signing = true", gradle)
+        self.assertIn("enableV3Signing = true", gradle)
+        self.assertIn("enableV4Signing = false", gradle)
         self.assertNotRegex(
             gradle,
             re.compile(r"signingConfig\s*=.*getByName\(\"debug\"\)", re.DOTALL),
@@ -35,6 +39,11 @@ class ReleaseInvariantTests(unittest.TestCase):
         self.assertIn("ACTUAL_PACKAGE", workflow)
         self.assertIn("ACTUAL_VERSION_CODE", workflow)
         self.assertIn("ACTUAL_VERSION_NAME", workflow)
+        self.assertIn("Verified using v1 scheme (JAR signing): true", workflow)
+        self.assertIn("Verified using v2 scheme (APK Signature Scheme v2): true", workflow)
+        self.assertIn("Verified using v3 scheme (APK Signature Scheme v3): true", workflow)
+        self.assertIn("--min-sdk-version 21", workflow)
+        self.assertIn("s/^.*Signer: certificate SHA-256 digest", workflow)
         self.assertIn("./gradlew clean testReleaseUnitTest lintRelease assembleRelease", workflow)
         self.assertNotIn("assembleDebug", workflow)
         self.assertNotIn("pull_request:", workflow)

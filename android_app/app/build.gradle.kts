@@ -69,6 +69,12 @@ android {
                 storePassword = releaseStorePasswordValue
                 keyAlias = releaseKeyAliasValue
                 keyPassword = releaseKeyPasswordValue
+                // Keep the same certificate while covering Android/OEM installers that
+                // still inspect the JAR signature instead of the APK signing block.
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = false
             }
         }
     }

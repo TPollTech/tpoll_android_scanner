@@ -153,8 +153,10 @@ jobs:
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           AAPT2=$(find "$ANDROID_HOME/build-tools" -type f -name aapt2 | sort -V | tail -n 1)
           VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs "$APK_FILE_NAME")
+          COMPAT_VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --min-sdk-version 21 "$APK_FILE_NAME")
           BADGING=$($AAPT2 dump badging "$APK_FILE_NAME" | head -n 1)
           printf '%s\n' "$VERIFY_OUTPUT"
+          printf '%s\n' "$COMPAT_VERIFY_OUTPUT"
           printf '%s\n' "$BADGING"
 
           if printf '%s\n' "$VERIFY_OUTPUT" | grep -q 'CN=Android Debug'; then
@@ -162,7 +164,20 @@ jobs:
             exit 1
           fi
 
-          ACTUAL_CERT=$(printf '%s\n' "$VERIFY_OUTPUT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p; s/^V2 Signer: certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          printf '%s\n' "$COMPAT_VERIFY_OUTPUT" | grep -Fq 'Verified using v1 scheme (JAR signing): true' || {
+            echo "Release APK is missing the v1/JAR signature required for OEM installer compatibility."
+            exit 1
+          }
+          printf '%s\n' "$COMPAT_VERIFY_OUTPUT" | grep -Fq 'Verified using v2 scheme (APK Signature Scheme v2): true' || {
+            echo "Release APK is missing the mandatory v2 signature."
+            exit 1
+          }
+          printf '%s\n' "$COMPAT_VERIFY_OUTPUT" | grep -Fq 'Verified using v3 scheme (APK Signature Scheme v3): true' || {
+            echo "Release APK is missing the mandatory v3 signature."
+            exit 1
+          }
+
+          ACTUAL_CERT=$(printf '%s\n' "$VERIFY_OUTPUT" | sed -n 's/^.*Signer: certificate SHA-256 digest: //p; s/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           EXPECTED_CERT=$(printf '%s' "$RELEASE_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           ACTUAL_PACKAGE=$(printf '%s\n' "$BADGING" | sed -n "s/.*package: name='\([^']*\)'.*/\1/p")
           ACTUAL_VERSION_CODE=$(printf '%s\n' "$BADGING" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p")
@@ -309,7 +324,7 @@ jobs:
 
           APK_SIGNER=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)
           REMOTE_VERIFY_OUTPUT=$($APK_SIGNER verify --verbose --print-certs published-release.apk)
-          REMOTE_CERT=$(printf '%s\n' "$REMOTE_VERIFY_OUTPUT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p; s/^V2 Signer: certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          REMOTE_CERT=$(printf '%s\n' "$REMOTE_VERIFY_OUTPUT" | sed -n 's/^.*Signer: certificate SHA-256 digest: //p; s/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           EXPECTED_CERT=$(printf '%s' "${{ secrets.RELEASE_CERT_SHA256 }}" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
           [ "$REMOTE_CERT" = "$EXPECTED_CERT" ] || {
             echo "Published release certificate mismatch."
