@@ -17,7 +17,6 @@ import com.tpoll.scanner.model.AppFinding
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.model.ScanResult
 import com.tpoll.scanner.notifications.NotificationHelper
-import com.tpoll.scanner.remover.AppRemover
 import com.tpoll.scanner.scanner.AppAnalyzer
 import kotlinx.coroutines.*
 
@@ -79,7 +78,6 @@ class ScanService : Service() {
         scanJob = scope.launch {
             try {
                 val analyzer = AppAnalyzer(applicationContext)
-                val remover = AppRemover(applicationContext)
                 val app = application as TPollApp
 
                 val selfPkg = packageName
@@ -95,20 +93,6 @@ class ScanService : Service() {
                     }
                 }
 
-                val removable = remover.getRemovableApps(findings)
-                var removedCount = 0
-
-                for (finding in removable) {
-                    if (!isActive) break
-                    val result = remover.removeApp(finding)
-                    if (result.success) {
-                        removedCount++
-                        withContext(Dispatchers.Main) {
-                            app.notificationHelper.showThreatRemoved(finding)
-                        }
-                    }
-                }
-
                 val highRisk = findings.count { it.level == RiskLevel.HIGH }
                 val mediumRisk = findings.count { it.level == RiskLevel.MEDIUM }
 
@@ -117,11 +101,11 @@ class ScanService : Service() {
                         totalScanned = findings.size,
                         highRisk = highRisk,
                         mediumRisk = mediumRisk,
-                        removedCount = removedCount
+                        removedCount = 0
                     )
                 }
 
-                saveScanResult(findings, removedCount)
+                saveScanResult(findings)
 
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -161,7 +145,7 @@ class ScanService : Service() {
         manager.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun saveScanResult(findings: List<AppFinding>, removedCount: Int) {
+    private fun saveScanResult(findings: List<AppFinding>) {
         val prefs = getSharedPreferences("scan_results", MODE_PRIVATE)
         val editor = prefs.edit()
 
@@ -169,7 +153,7 @@ class ScanService : Service() {
         editor.putInt("last_scan_total", findings.size)
         editor.putInt("last_scan_high", findings.count { it.level == RiskLevel.HIGH })
         editor.putInt("last_scan_medium", findings.count { it.level == RiskLevel.MEDIUM })
-        editor.putInt("last_scan_removed", removedCount)
+        editor.putInt("last_scan_removed", 0)
 
         val history = prefs.getString("scan_history", "[]") ?: "[]"
         try {
@@ -179,7 +163,7 @@ class ScanService : Service() {
                 put("total", findings.size)
                 put("high", findings.count { it.level == RiskLevel.HIGH })
                 put("medium", findings.count { it.level == RiskLevel.MEDIUM })
-                put("removed", removedCount)
+                put("removed", 0)
             }
             jsonArray.put(entry)
 
@@ -208,7 +192,7 @@ class ScanService : Service() {
             PowerManager.PARTIAL_WAKE_LOCK,
             "tpoll::scan_lock"
         ).apply {
-            acquire(30 * 60 * 1000L) // 30 minutos max
+            acquire(5 * 60 * 1000L)
         }
     }
 

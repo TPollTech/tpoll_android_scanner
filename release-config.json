@@ -1,11 +1,13 @@
 {
-  "versionCode": 29,
-  "versionName": "1.8.16",
+  "versionCode": 30,
+  "versionName": "1.8.17",
   "mandatory": false,
   "minVersionCode": 1,
   "releaseNotes": [
-    "Compatibilidade ampliada da assinatura digital com instaladores Android e de fabricantes",
-    "APK assinado simultaneamente pelos esquemas v1, v2 e v3, mantendo o certificado oficial",
-    "Publicação bloqueada automaticamente se qualquer esquema de assinatura obrigatório estiver ausente"
+    "Removido comportamento de fraude detectado por antivírus e apps bancários",
+    "Removido VPN que interceptava tráfego e monitoramento de navegador via acessibilidade",
+    "Removido Device Admin e anti-desinstalação forçada",
+    "Removido remoção automática de apps - agora só o usuário decide",
+    "Serviços não utilizam mais START_STICKY"
   ]
 }

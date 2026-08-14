@@ -17,13 +17,8 @@ import com.tpoll.scanner.MainActivity
 import com.tpoll.scanner.R
 import com.tpoll.scanner.data.AppDatabase
 import com.tpoll.scanner.model.AppFinding
-import com.tpoll.scanner.model.QuarantinedApp
 import com.tpoll.scanner.model.RiskLevel
 import com.tpoll.scanner.notifications.NotificationHelper
-import com.tpoll.scanner.webguard.WebGuard
-import com.tpoll.scanner.webguard.WebBlockerVPNService
-import com.tpoll.scanner.webguard.URLMonitorService
-import com.tpoll.scanner.webguard.WebProtectionConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.*
@@ -106,7 +101,7 @@ class ShieldService : Service() {
                 scope.launch { scanNow() }
             }
         }
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun startPeriodicChecks() {
@@ -145,16 +140,8 @@ class ShieldService : Service() {
                     val app = application as com.tpoll.scanner.TPollApp
                     for (threat in status.threats.filter { it.severity >= 70 }) {
                         app.notificationHelper.showShieldAlert(threat)
-                        autoRemoveThreat(threat)
                     }
                 }
-
-                val webGuard = WebGuard(this@ShieldService)
-                if (webGuard.isEnabled()) {
-                    withContext(Dispatchers.IO) { webGuard.scanDownloads() }
-                }
-
-                checkWebProtectionStatus()
 
                 val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
                 prefs.edit()
@@ -191,68 +178,6 @@ class ShieldService : Service() {
         } catch (_: Exception) { }
     }
 
-    private suspend fun autoRemoveThreat(threat: com.tpoll.scanner.protection.ShieldThreat) {
-        try {
-            val settings = getSharedPreferences("scan_settings", Context.MODE_PRIVATE)
-            val autoHigh = settings.getBoolean("auto_remove_high", true)
-            val autoMedium = settings.getBoolean("auto_remove_medium", false)
-            val shouldRemove = (threat.severity >= 80 && autoHigh) || (threat.severity in 50..79 && autoMedium)
-            if (!shouldRemove) return
-
-            val db = AppDatabase.getInstance(this)
-            val appName = try {
-                packageManager.getApplicationLabel(packageManager.getApplicationInfo(threat.packageName, 0)).toString()
-            } catch (_: Exception) { threat.appName }
-
-            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                data = android.net.Uri.parse("package:${threat.packageName}")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            try { startActivity(intent) } catch (_: Exception) { }
-
-            val quarantined = QuarantinedApp(
-                packageName = threat.packageName,
-                appName = appName,
-                reason = threat.details,
-                riskLevel = if (threat.severity >= 80) "HIGH" else "MEDIUM",
-                score = threat.severity,
-                removedBy = "auto"
-            )
-            db.quarantineDao().insert(quarantined)
-        } catch (_: Exception) { }
-    }
-
-    private suspend fun checkWebProtectionStatus() {
-        withContext(Dispatchers.IO) {
-            try {
-                val config = WebProtectionConfig.getInstance(this@ShieldService)
-
-                if (config.isVPNEnabled() && !WebBlockerVPNService.isRunning()) {
-                    if (!com.tpoll.scanner.webguard.WebProtectionToggle.isOtherVPNActive(this@ShieldService)) {
-                        WebBlockerVPNService.start(this@ShieldService)
-                    }
-                }
-
-                if (config.isAccessibilityEnabled() && !URLMonitorService.isMonitoring()) {
-                    if (URLMonitorService.isAccessibilityEnabled(this@ShieldService)) {
-                    } else {
-                        config.setAccessibilityEnabled(false)
-                    }
-                }
-
-                val vpnRunning = WebBlockerVPNService.isRunning()
-                val accessibilityRunning = URLMonitorService.isMonitoring()
-
-                val prefs = getSharedPreferences("protection_status", Context.MODE_PRIVATE)
-                prefs.edit()
-                    .putBoolean("vpn_active", vpnRunning)
-                    .putBoolean("accessibility_active", accessibilityRunning)
-                    .putInt("web_blocked_today", config.getBlockedToday())
-                    .apply()
-            } catch (_: Exception) {}
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         isRunning = false
@@ -286,7 +211,7 @@ class ShieldService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "tpoll::shield_lock"
             ).apply {
-                acquire(10 * 60 * 1000L)
+                acquire(5 * 60 * 1000L)
             }
         } catch (_: Exception) { }
     }

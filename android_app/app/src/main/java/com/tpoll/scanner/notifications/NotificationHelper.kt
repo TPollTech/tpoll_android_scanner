@@ -25,14 +25,10 @@ class NotificationHelper(private val context: Context) {
         const val CHANNEL_SCAN = "scan_channel"
         const val CHANNEL_THREATS = "threats_channel"
         const val CHANNEL_PROTECTION = "protection_channel"
-        const val CHANNEL_WEBGUARD = "webguard_channel"
         const val CHANNEL_UPDATES = "updates_channel"
-        const val CHANNEL_WEBPROTECTION = "webprotection_channel"
         const val NOTIFICATION_SCAN_ID = 1001
         const val NOTIFICATION_THREATS_ID = 1002
         const val NOTIFICATION_SHIELD_ALERT_BASE = 2000
-        const val NOTIFICATION_WEBGUARD_BASE = 3000
-        const val NOTIFICATION_WEBPROTECTION_BASE = 4000
     }
 
     init {
@@ -69,15 +65,6 @@ class NotificationHelper(private val context: Context) {
             setShowBadge(false)
         }
 
-        val webguardChannel = NotificationChannel(
-            CHANNEL_WEBGUARD,
-            "WebGuard",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Alertas de downloads maliciosos detectados"
-            enableVibration(true)
-        }
-
         val updatesChannel = NotificationChannel(
             CHANNEL_UPDATES,
             "Atualizações do app",
@@ -86,22 +73,10 @@ class NotificationHelper(private val context: Context) {
             description = "Download, confirmação e resultado de atualizações"
         }
 
-        val webProtectionChannel = NotificationChannel(
-            CHANNEL_WEBPROTECTION,
-            "Proteção Web",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply {
-            description = "Alertas de sites bloqueados e proteção de navegação"
-            enableVibration(true)
-            enableLights(true)
-        }
-
         manager.createNotificationChannel(scanChannel)
         manager.createNotificationChannel(threatsChannel)
         manager.createNotificationChannel(protectionChannel)
-        manager.createNotificationChannel(webguardChannel)
         manager.createNotificationChannel(updatesChannel)
-        manager.createNotificationChannel(webProtectionChannel)
     }
 
     private fun openAppIntent(): PendingIntent {
@@ -176,31 +151,6 @@ class NotificationHelper(private val context: Context) {
             .build()
 
         manager.notify(NOTIFICATION_THREATS_ID, notification)
-    }
-
-    fun showThreatRemoved(finding: AppFinding) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val riskLabel = when (finding.level) {
-            RiskLevel.HIGH -> "ALTO"
-            RiskLevel.MEDIUM -> "MÉDIO"
-            RiskLevel.LOW -> "BAIXO"
-        }
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_THREATS)
-            .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle("Ameaça removida: ${finding.appName}")
-            .setContentText("Risco $riskLabel (${finding.score}/100) - ${finding.reasons.firstOrNull() ?: ""}")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(openAppIntent())
-            .addAction(
-                0, "Desinstalar",
-                uninstallIntent(finding.packageName)
-            )
-            .setAutoCancel(true)
-            .build()
-
-        manager.notify(finding.packageName.hashCode(), notification)
     }
 
     fun showShieldAlert(threat: ShieldThreat) {
@@ -286,116 +236,8 @@ class NotificationHelper(private val context: Context) {
         manager.notify(4004, notification)
     }
 
-    fun showWebProtectionAlert(domain: String, category: String, severity: String) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val intent = Intent(context, com.tpoll.scanner.MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val categoryLabel = when (category) {
-            "Cassino e apostas online" -> "Cassino/Apostas"
-            "Conteúdo explícito/adulto" -> "Conteúdo Explícito"
-            "Sites de golpe, fraude e phishing" -> "Phishing/Golpe"
-            "Sites de distribuição de malware e vírus" -> "Malware/Vírus"
-            "Redes sociais falsas e páginas de phishing" -> "Rede Social Falsa"
-            else -> category
-        }
-
-        val severityEmoji = when (severity) {
-            "critical" -> "\uD83D\uDEA8"
-            "high" -> "\u26A0\uFE0F"
-            "medium" -> "\uD83D\uDD34"
-            else -> "\uD83D\uDFE1"
-        }
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_WEBPROTECTION)
-            .setSmallIcon(R.drawable.ic_shield)
-            .setContentTitle("$severityEmoji Site Bloqueado: $categoryLabel")
-            .setContentText("$domain foi bloqueado pelo TPoll Guard")
-            .setStyle(
-                NotificationCompat.BigTextStyle().bigText(
-                    "O site $domain foi bloqueado pelo TPoll Guard.\n" +
-                    "Categoria: $categoryLabel\n" +
-                    "Gravidade: $severity.uppercase()\n\n" +
-                    "Este site pode conter conteúdo prejudicial, golpes ou vírus."
-                )
-            )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .build()
-
-        manager.notify(NOTIFICATION_WEBPROTECTION_BASE + domain.hashCode(), notification)
-    }
-
-    fun showWebGuardAlert(fileName: String, threatDetail: String) {
-        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val intent = Intent(context, com.tpoll.scanner.MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_WEBGUARD)
-            .setSmallIcon(com.tpoll.scanner.R.drawable.ic_shield)
-            .setContentTitle("APK malicioso detectado!")
-            .setContentText("$fileName - $threatDetail")
-            .setStyle(NotificationCompat.BigTextStyle().bigText("O arquivo $fileName foi baixado e parece ser malicioso.\n$threatDetail\n\nRecomendamos excluir o arquivo imediatamente."))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .build()
-
-        manager.notify(NOTIFICATION_WEBGUARD_BASE + fileName.hashCode() % 1000, notification)
-    }
-
-    fun logWebProtectionEvent(domain: String, category: String, bypassed: Boolean) {
-        val prefs = context.getSharedPreferences("webprotection_stats", Context.MODE_PRIVATE)
-        val totalBlocked = prefs.getInt("total_blocked", 0) + 1
-        prefs.edit().putInt("total_blocked", totalBlocked).apply()
-
-        val categoryKey = "blocked_$category"
-        val categoryCount = prefs.getInt(categoryKey, 0) + 1
-        prefs.edit().putInt(categoryKey, categoryCount).apply()
-
-        if (bypassed) {
-            val bypassedCount = prefs.getInt("total_bypassed", 0) + 1
-            prefs.edit().putInt("total_bypassed", bypassedCount).apply()
-        }
-    }
-
-    fun getWebProtectionStats(): WebProtectionStats {
-        val prefs = context.getSharedPreferences("webprotection_stats", Context.MODE_PRIVATE)
-        return WebProtectionStats(
-            totalBlocked = prefs.getInt("total_blocked", 0),
-            totalBypassed = prefs.getInt("total_bypassed", 0),
-            gamblingBlocked = prefs.getInt("blocked_gambling", 0),
-            adultBlocked = prefs.getInt("blocked_adult", 0),
-            phishingBlocked = prefs.getInt("blocked_phishing", 0),
-            malwareBlocked = prefs.getInt("blocked_malware", 0),
-            fakeSocialBlocked = prefs.getInt("blocked_fake_social", 0)
-        )
-    }
-
     fun cancelAll() {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.cancelAll()
     }
 }
-
-data class WebProtectionStats(
-    val totalBlocked: Int,
-    val totalBypassed: Int,
-    val gamblingBlocked: Int,
-    val adultBlocked: Int,
-    val phishingBlocked: Int,
-    val malwareBlocked: Int,
-    val fakeSocialBlocked: Int
-)

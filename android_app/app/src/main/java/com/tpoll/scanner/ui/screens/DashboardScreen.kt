@@ -327,29 +327,6 @@ fun DashboardScreen(
             )
         }
 
-        item {
-            val webProtectionConfig = remember { com.tpoll.scanner.webguard.WebProtectionConfig.getInstance(context) }
-            val vpnActive = remember { com.tpoll.scanner.webguard.WebBlockerVPNService.isRunning() }
-            val accessibilityActive = remember { com.tpoll.scanner.webguard.URLMonitorService.isMonitoring() }
-            val webProtectionActive = vpnActive || accessibilityActive
-            val blockedToday = remember { webProtectionConfig.getBlockedToday() }
-
-            MonitorCard(
-                icon = Icons.Default.Shield,
-                title = "Proteção Web",
-                subtitle = when {
-                    vpnActive && accessibilityActive -> "VPN + Monitoramento ativos"
-                    vpnActive -> "Bloqueio VPN ativo"
-                    accessibilityActive -> "Monitoramento ativo"
-                    else -> "Desativado"
-                },
-                isActive = webProtectionActive,
-                accentColor = if (webProtectionActive) extended.shieldActive else extended.shieldInactive,
-                onClick = null,
-                extraInfo = if (blockedToday > 0) "$blockedToday site(s) bloqueado(s) hoje" else null
-            )
-        }
-
         if (quarantineCount > 0) {
             item {
                 MonitorCard(
